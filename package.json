@@ -1,7 +1,7 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.1.0",
-  "description": "DeepSeek-first SpecsRelay inbox and draft handoff for DeepSeek Harness.",
+  "version": "0.2.0",
+  "description": "DeepSeek Web conversation tab and SpecsRelay draft handoff for DeepSeek Harness WebUI.",
   "type": "module",
   "main": "index.js",
   "repository": {

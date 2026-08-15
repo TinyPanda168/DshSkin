@@ -13,6 +13,7 @@
       } = React;
 
       const API = "/specsrelay/v1";
+      const DEEPSEEK_URL = "https://chat.deepseek.com/";
       const SPECSRELAY_ICON =
         "data:image/png;base64,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";
       const listeners = new Set();
@@ -261,20 +262,21 @@
         );
       }
 
-      function SpecsRelayInbox({ wide, loadDraft, useSessions }) {
-        const [open, setOpen] = useState(false);
-        const state = useInbox();
-        const currentWorkspace = useSessions((sessions) => {
-          const id = sessions.current;
-          return id ? sessions.byId[id]?.cwd || "" : "";
-        });
-        useEffect(() => {
-          if (open) void inbox.refresh();
-        }, [open]);
-        const sorted = useMemo(
-          () => [...state.items].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
-          [state.items]
+      function activateDeepSeekView() {
+        const tab = [...document.querySelectorAll('button[role="tab"]')].find(
+          (candidate) => candidate.textContent?.trim() === "DeepSeek"
         );
+        if (!(tab instanceof HTMLElement)) return false;
+        tab.click();
+        return true;
+      }
+
+      function SpecsRelayShortcut({ wide, loadDraft, useSessions }) {
+        const [open, setOpen] = useState(false);
+        const sessionId = useSessions((sessions) => sessions.current || "");
+        const onClick = () => {
+          if (!activateDeepSeekView()) setOpen(true);
+        };
         return h(
           React.Fragment,
           null,
@@ -282,9 +284,9 @@
             "button",
             {
               type: "button",
-              onClick: () => setOpen(true),
-              title: "SpecsRelay for DeepSeek",
-              "aria-label": "打开 SpecsRelay for DeepSeek",
+              onClick,
+              title: "打开 DeepSeek 页签",
+              "aria-label": "打开 DeepSeek 页签",
               style: {
                 ...buttonStyle,
                 alignItems: "center",
@@ -315,102 +317,203 @@
             h(
               "div",
               {
-                role: "dialog",
-                "aria-modal": true,
-                "aria-label": "SpecsRelay for DeepSeek 收件箱",
+                "aria-label": "DeepSeek 网页入口",
                 style: {
                   background: "var(--dsw-alias-bg-base)",
-                  color: "var(--dsw-alias-text-primary)",
                   inset: 0,
-                  overflow: "auto",
                   position: "fixed",
                   zIndex: 1000
                 }
               },
+              h(SpecsRelayDeepSeekView, {
+                loadDraft,
+                onClose: () => setOpen(false),
+                sessionId,
+                standalone: true,
+                useSessions
+              })
+            )
+        );
+      }
+
+      function SpecsRelayDeepSeekView({
+        loadDraft,
+        onClose,
+        sessionId,
+        standalone = false,
+        useSessions
+      }) {
+        const [showInbox, setShowInbox] = useState(false);
+        const [frameKey, setFrameKey] = useState(0);
+        const state = useInbox();
+        const currentWorkspace = useSessions(
+          (sessions) => sessions.byId[sessionId]?.cwd || ""
+        );
+        useEffect(() => {
+          if (showInbox) void inbox.refresh();
+        }, [showInbox]);
+        const sorted = useMemo(
+          () => [...state.items].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
+          [state.items]
+        );
+        return h(
+          "section",
+          {
+            "aria-label": "SpecsRelay DeepSeek 网页",
+            style: {
+              color: "var(--dsw-alias-text-primary)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              height: standalone ? "100vh" : "calc(100vh - 190px)",
+              minHeight: 520,
+              minWidth: 0,
+              padding: standalone ? 16 : "0 16px 16px"
+            }
+          },
+          h(
+            "header",
+            {
+              style: {
+                alignItems: "center",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                justifyContent: "space-between"
+              }
+            },
+            h(
+              "div",
+              { style: { minWidth: 0 } },
+              h("strong", null, "DeepSeek 网页"),
               h(
-                "main",
+                "div",
                 {
+                  title: currentWorkspace,
                   style: {
+                    color: "var(--dsw-alias-text-tertiary)",
+                    fontSize: 12,
+                    marginTop: 3,
+                    maxWidth: "min(62vw, 720px)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }
+                },
+                currentWorkspace
+                  ? `当前 DSH 项目：${currentWorkspace}`
+                  : "当前 DSH 会话尚未关联项目"
+              )
+            ),
+            h(
+              "div",
+              { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+              h(
+                "button",
+                {
+                  type: "button",
+                  style: buttonStyle,
+                  onClick: () => setFrameKey((value) => value + 1)
+                },
+                "刷新网页"
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  style: buttonStyle,
+                  onClick: () => setShowInbox((value) => !value)
+                },
+                showInbox ? "关闭交接记录" : `交接记录${state.items.length ? ` ${state.items.length}` : ""}`
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  style: buttonStyle,
+                  onClick: () => window.open(DEEPSEEK_URL, "_blank", "noopener,noreferrer")
+                },
+                "在浏览器新页打开"
+              ),
+              onClose &&
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    style: buttonStyle,
+                    onClick: onClose
+                  },
+                  "关闭"
+                )
+            )
+          ),
+          h(
+            "div",
+            {
+              style: {
+                display: "grid",
+                flex: "1 1 auto",
+                gap: 10,
+                gridTemplateColumns: showInbox
+                  ? "minmax(0, 1fr) minmax(320px, 420px)"
+                  : "minmax(0, 1fr)",
+                minHeight: 0
+              }
+            },
+            h(
+              "div",
+              {
+                style: {
+                  border: "1px solid var(--dsw-alias-border-subtle)",
+                  borderRadius: 12,
+                  minHeight: 0,
+                  overflow: "hidden"
+                }
+              },
+              h("iframe", {
+                key: frameKey,
+                src: DEEPSEEK_URL,
+                title: "DeepSeek 网页端",
+                allow: "clipboard-read; clipboard-write",
+                referrerPolicy: "strict-origin-when-cross-origin",
+                style: {
+                  background: "#fff",
+                  border: 0,
+                  display: "block",
+                  height: "100%",
+                  minHeight: 500,
+                  width: "100%"
+                }
+              })
+            ),
+            showInbox &&
+              h(
+                "aside",
+                {
+                  "aria-label": "SpecsRelay 交接记录",
+                  style: {
+                    background: "var(--dsw-alias-bg-layer-1)",
+                    border: "1px solid var(--dsw-alias-border-subtle)",
+                    borderRadius: 12,
                     display: "grid",
-                    gap: 18,
-                    margin: "0 auto",
-                    maxWidth: 1080,
-                    padding: "32px clamp(20px, 5vw, 64px) 64px"
+                    gap: 12,
+                    maxHeight: "100%",
+                    minHeight: 0,
+                    overflow: "auto",
+                    padding: 14
                   }
                 },
                 h(
                   "header",
                   {
                     style: {
-                      alignItems: "flex-start",
+                      alignItems: "center",
                       display: "flex",
-                      gap: 18,
+                      gap: 10,
                       justifyContent: "space-between"
                     }
                   },
-                  h(
-                    "div",
-                    null,
-                    h(
-                      "div",
-                      {
-                        style: {
-                          color: "var(--dsw-alias-text-tertiary)",
-                          fontSize: 13,
-                          marginBottom: 6
-                        }
-                      },
-                      "DeepSeek-first requirement relay"
-                    ),
-                    h(
-                      "h1",
-                      { style: { fontSize: 28, margin: 0 } },
-                      "SpecsRelay for DeepSeek"
-                    ),
-                    h(
-                      "p",
-                      {
-                        style: {
-                          color: "var(--dsw-alias-text-secondary)",
-                          lineHeight: 1.6,
-                          margin: "8px 0 0"
-                        }
-                      },
-                      "接收经过整理和确认的需求，载入 DSH 草稿后由你最终检查并发送。"
-                    )
-                  ),
-                  h(
-                    "button",
-                    {
-                      type: "button",
-                      style: buttonStyle,
-                      onClick: () => setOpen(false)
-                    },
-                    "关闭"
-                  )
-                ),
-                h(
-                  "section",
-                  {
-                    style: {
-                      background: "var(--dsw-alias-bg-layer-1)",
-                      borderRadius: 12,
-                      color: "var(--dsw-alias-text-secondary)",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      fontSize: 13,
-                      gap: 10,
-                      justifyContent: "space-between",
-                      padding: "12px 14px"
-                    }
-                  },
-                  h(
-                    "span",
-                    null,
-                    currentWorkspace
-                      ? `当前 DSH 项目：${currentWorkspace}`
-                      : "当前尚未选择 DSH 项目"
-                  ),
+                  h("strong", null, "交接记录"),
                   h(
                     "button",
                     {
@@ -436,13 +539,13 @@
                       {
                         style: {
                           border: "1px dashed var(--dsw-alias-border-subtle)",
-                          borderRadius: 14,
+                          borderRadius: 10,
                           color: "var(--dsw-alias-text-tertiary)",
-                          padding: 48,
+                          padding: 24,
                           textAlign: "center"
                         }
                       },
-                      "暂无需求。请从 DeepSeek 网页中的 SpecsRelay 发送任务。"
+                      "暂无已整理的交接记录。"
                     )
                   : h(
                       "section",
@@ -456,7 +559,18 @@
                       )
                     )
               )
-            )
+          ),
+          h(
+            "p",
+            {
+              style: {
+                color: "var(--dsw-alias-text-tertiary)",
+                fontSize: 12,
+                margin: 0
+              }
+            },
+            "此页签直接加载 DeepSeek 官方网页，登录状态由当前浏览器管理。若网页拒绝嵌入，可使用“在浏览器新页打开”。"
+          )
         );
       }
 
@@ -517,10 +631,28 @@
                   order: -10,
                   inject: () => ({ loadDraft: loadCurrent })
                 },
-                SpecsRelayInbox
+                SpecsRelayShortcut
               )
             ),
-          "specsrelay-deepseek: sidebar inbox"
+          "specsrelay-deepseek: sidebar tab shortcut"
+        );
+        ctx.effect(
+          () =>
+            ctx.slots.inject("conversation.view", () =>
+              ctx.slots.register(
+                {
+                  name: "conversation.view",
+                  id: "specsrelay-deepseek",
+                  order: 20,
+                  label: "DeepSeek",
+                  inject: (sessionId) => ({
+                    loadDraft: (item) => loadIntoSession(ctx, sessionId, item)
+                  })
+                },
+                SpecsRelayDeepSeekView
+              )
+            ),
+          "specsrelay-deepseek: DeepSeek web conversation view"
         );
         ctx.effect(
           () =>

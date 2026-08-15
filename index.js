@@ -15,7 +15,7 @@ export const name = "specsrelay-dsh-deepseek";
 export const inject = ["webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.2.0";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_PROMPT_CHARS = 160000;
