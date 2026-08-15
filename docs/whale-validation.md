@@ -5,6 +5,7 @@
 - 兼容性参照：[`Small-tailqwq/dsh-deep-whale`](https://github.com/Small-tailqwq/dsh-deep-whale) 的 `maid-atelier`。
 - 便携验证皮肤：[`skins/blue-whale-navigator`](../skins/blue-whale-navigator/skin.json)。
 - 预览客户端：[`apps/studio`](../apps/studio/README.md) 内的 DSH Web 参考适配器。
+- DSH Web 宿主插件：[`packages/plugin-dsh-web`](../packages/plugin-dsh-web/README.md)。
 
 `maid-atelier` 以 CC BY-NC-SA 4.0 发布，包含第三方角色形象的衍生创作署名链。DshSkin 仓库没有复制它的图片、CSS、TypeScript 或构图；“蓝鲸航员”从新的角色说明生成，来源记录见 [`PROVENANCE.md`](../skins/blue-whale-navigator/PROVENANCE.md)。
 
@@ -30,6 +31,12 @@ pnpm run test
 node packages/cli/dist/bin.js validate skins/blue-whale-navigator
 node packages/cli/dist/bin.js registry registry/registry.json
 pnpm studio
+
+# 使用临时 DSH_HOME 安装并启动官方 Web profile
+dsh plugin --profile web add ./packages/plugin-dsh-web
+dsh --profile web
 ```
 
-浏览器验收覆盖：默认皮肤加载、亮/暗 palette、五个角色状态逐一切换、语义强调色实时编辑，以及实际 DSH Web token 与标准 token 同步。文件级校验确认五张角色图均为 1254×1254 RGBA PNG，满足 `character.*` 的尺寸、宽高比和 5 MB 单文件限制。
+独立 Studio 验收覆盖：默认皮肤加载、亮/暗 palette、五个角色状态逐一切换、语义强调色实时编辑，以及实际 DSH Web token 与标准 token 同步。文件级校验确认五张角色图均为 1254×1254 RGBA PNG，满足 `character.*` 的尺寸、宽高比和 5 MB 单文件限制。
+
+官方 DSH Web 验收使用独立的临时 profile：插件通过 bundle patch 进入启动图，固定素材路由与同源设置路由可用；通用设置页显示 DshSkin 行，五状态图可切换，启用/停用会应用/恢复 DSH 原生主题 token，刷新后设置仍从 Host 文件恢复。验收期间未复制或下载 `dsh-deep-whale` 的任何文件。

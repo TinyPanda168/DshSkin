@@ -12,9 +12,9 @@
 
 ## Web-based DSH clients
 
-`@dsh-skins/adapter-dsh-web` maps portable tokens onto the current official `--dsw-*` token names, exposes standard asset URLs as `--dsh-skin-asset-*` variables, and renders character activity artwork. It applies data only and does not evaluate package code.
+`@dsh-skins/adapter-dsh-web` maps portable tokens onto the current official `--dsw-*` token names and remains useful for previews and non-Cordis wrappers. The installable `@dsh-skins/plugin-dsh-web` is the production DSH integration: it submits paired light/dark values through `ctx.theme.overrideTokens`, renders character artwork through `shell.overlay`, and stores its own selection through the Host settings scope. It does not replace DSH's built-in light/dark/system preference.
 
-A desktop wrapper that displays the official loopback Web UI can load this adapter as a normal browser plugin. This covers wrappers such as `deepseek-harness-desktop` without forking their Electron lifecycle code. The wrapper remains responsible for installation, package storage, asset URL resolution, persistence, and its own settings UI.
+A desktop wrapper that displays the official loopback Web UI can load the DSH plugin without forking its Electron lifecycle code. A wrapper that does not compose DSH client plugins can use the lower-level adapter and remains responsible for installation, package storage, asset URL resolution, persistence, and its own settings UI.
 
 ## Other clients
 

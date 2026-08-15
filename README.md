@@ -17,6 +17,7 @@ skin.json + assets ─SDK─┼─ Electron/Web 封装客户端
 
 - `packages/spec`：JSON Schema、TypeScript 类型、设计部位目录、安全校验、能力协商与素材回退。
 - `packages/adapter-dsh-web`：官方 DSH Web UI 及其桌面封装的参考适配器。
+- `packages/plugin-dsh-web`：可通过 `dsh plugin add` 安装的可信宿主插件，使用 DSH 原生主题、设置与 Slot 能力加载声明式皮肤。
 - `packages/cli`：创作者和 registry 校验命令。
 - `apps/studio`：独立可视化预览器，支持清单/配色编辑、设计部位替换、角色状态切换、目录导入与安全导出。
 - `creator-kit`：供生图 Agent 使用的受限创作流程与交付清单。
@@ -37,6 +38,16 @@ pnpm studio
 ```
 
 浏览器打开 `http://127.0.0.1:5173/`。默认加载原创的“蓝鲸航员”五状态验证皮肤；也可以导入一个本地皮肤目录，实时修改语义颜色和标准素材部位，并导出不含可执行代码的 `.dshskin` ZIP 包。
+
+安装 DSH Web 验证插件：
+
+```sh
+pnpm --filter @dsh-skins/plugin-dsh-web build
+dsh plugin --profile web add ./packages/plugin-dsh-web
+dsh --profile web
+```
+
+插件只负责把安全皮肤数据接入 DSH；创作者交付的皮肤仍然不是可执行插件。
 
 查看标准设计部位：
 
