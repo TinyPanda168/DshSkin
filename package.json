@@ -8,10 +8,11 @@
     "node": ">=22.19"
   },
   "scripts": {
-    "build": "pnpm --filter @dsh-skins/spec build && pnpm --filter @dsh-skins/adapter-dsh-web build && pnpm --filter @dsh-skins/cli build",
+    "build": "pnpm --filter @dsh-skins/spec build && pnpm --filter @dsh-skins/adapter-dsh-web build && pnpm --filter @dsh-skins/cli build && pnpm --filter @dsh-skins/studio build",
     "test": "pnpm -r --if-present test",
+    "studio": "pnpm --filter @dsh-skins/studio dev",
     "skin": "node packages/cli/dist/bin.js",
-    "registry:validate": "node packages/cli/dist/bin.js validate skins/ocean-mint && node packages/cli/dist/bin.js registry registry/registry.json",
+    "registry:validate": "node packages/cli/dist/bin.js validate skins/ocean-mint && node packages/cli/dist/bin.js validate skins/blue-whale-navigator && node packages/cli/dist/bin.js registry registry/registry.json",
     "check": "pnpm run build && pnpm run test && pnpm run registry:validate"
   },
   "devDependencies": {

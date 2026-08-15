@@ -1,0 +1,93 @@
+{
+  "$schema": "../../packages/spec/schema/dsh-skin.schema.json",
+  "schemaVersion": 1,
+  "id": "dsh.skins.blue-whale-navigator",
+  "name": "蓝鲸航员",
+  "version": "0.1.0",
+  "summary": "原创鲸鱼娘五状态验证皮肤，用于检查跨客户端语义配色、角色回退和状态切换。",
+  "homepage": "https://github.com/TinyPanda168/DshSkin",
+  "author": {
+    "id": "tinypanda168",
+    "name": "TinyPanda168",
+    "url": "https://github.com/TinyPanda168"
+  },
+  "license": {
+    "spdx": "MIT",
+    "commercialUse": true,
+    "attribution": "Blue Whale Navigator by TinyPanda168 / DshSkin contributors."
+  },
+  "contentRating": "general",
+  "compatibility": {
+    "requiredCapabilities": ["tokens.semantic.v1"],
+    "optionalCapabilities": ["assets.identity.v1", "assets.character.states.v1"]
+  },
+  "palettes": {
+    "light": {
+      "color.background.base": "#EAF4FC",
+      "color.background.surface": "#FAFDFF",
+      "color.background.sidebar": "#D5EAF8",
+      "color.text.primary": "#10253D",
+      "color.text.secondary": "#526B82",
+      "color.border": "#B6D5E7",
+      "color.accent": "#047EAA",
+      "color.accent.contrast": "#FFFFFF",
+      "color.state.success": "#18875B",
+      "color.state.warning": "#9A6500",
+      "color.state.error": "#C94C57",
+      "radius.control": 11,
+      "radius.panel": 18
+    },
+    "dark": {
+      "color.background.base": "#061423",
+      "color.background.surface": "#0D2238",
+      "color.background.sidebar": "#081B30",
+      "color.text.primary": "#E8F6FF",
+      "color.text.secondary": "#9DB7CA",
+      "color.border": "#28475D",
+      "color.accent": "#55D7F5",
+      "color.accent.contrast": "#03131F",
+      "color.state.success": "#52D6A0",
+      "color.state.warning": "#F0BE55",
+      "color.state.error": "#FF7F89",
+      "radius.control": 11,
+      "radius.panel": 18
+    }
+  },
+  "assets": {
+    "agent.avatar": {
+      "path": "assets/character-idle.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    },
+    "character.idle": {
+      "path": "assets/character-idle.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    },
+    "character.thinking": {
+      "path": "assets/character-thinking.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    },
+    "character.tool": {
+      "path": "assets/character-tool.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    },
+    "character.success": {
+      "path": "assets/character-success.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    },
+    "character.error": {
+      "path": "assets/character-error.png",
+      "mimeType": "image/png",
+      "fit": "contain"
+    }
+  },
+  "provenance": {
+    "aiGenerated": true,
+    "generator": "OpenAI built-in image generation",
+    "rightsStatement": "Original assets generated for TinyPanda168 on 2026-08-15 from a new character brief; no third-party character image was supplied or copied."
+  }
+}

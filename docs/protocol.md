@@ -6,7 +6,7 @@ The protocol separates portable skin data from client rendering. A client advert
 
 ## Package contents
 
-An unpacked source skin contains `skin.json`, optional `assets/` and `previews/` directories, and a skin-specific license file. The archive and signature transport is deliberately not fixed in version 1 source format; clients and registries must not infer trust from a filename extension.
+An unpacked source skin contains `skin.json`, optional `assets/` and `previews/` directories, and a skin-specific license file. A `.dshskin` file is a ZIP transport container, not a trust signal: Studio exports only `skin.json` plus its referenced local raster files, and clients must unpack into a new package directory and run the same path and file validation before activation. Signed distribution metadata remains outside the version 1 source format.
 
 The manifest schema is [`packages/spec/schema/dsh-skin.schema.json`](../packages/spec/schema/dsh-skin.schema.json). Runtime validation adds cross-field rules: capabilities used by asset slots must be declared, capability lists cannot overlap, and package paths cannot escape their owning directory.
 

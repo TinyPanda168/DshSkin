@@ -6,6 +6,11 @@
       "id": "dsh.skins.ocean-mint",
       "version": "0.1.0",
       "manifest": "../skins/ocean-mint/skin.json"
+    },
+    {
+      "id": "dsh.skins.blue-whale-navigator",
+      "version": "0.1.0",
+      "manifest": "../skins/blue-whale-navigator/skin.json"
     }
   ]
 }
