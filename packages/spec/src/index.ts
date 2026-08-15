@@ -1,0 +1,30 @@
+export { capabilityForSlot, SKIN_SLOT_CATALOG, type SkinSlotSpecification } from './catalog.js'
+export {
+  isSafePackagePath,
+  negotiateSkin,
+  resolveSkinAsset,
+  validateSkinManifest,
+  validateSkinRegistry,
+} from './validation.js'
+export {
+  SKIN_CAPABILITIES,
+  SKIN_SCHEMA_VERSION,
+  type SkinAssetDescriptor,
+  type SkinAssetFit,
+  type SkinAssetMimeType,
+  type SkinAssetSlot,
+  type SkinAuthor,
+  type SkinCapability,
+  type SkinContentRating,
+  type SkinLicense,
+  type SkinManifest,
+  type SkinNegotiation,
+  type SkinPaletteMode,
+  type SkinPaletteTokens,
+  type SkinPreview,
+  type SkinProvenance,
+  type SkinRegistry,
+  type SkinRegistryEntry,
+  type SkinValidationIssue,
+  type SkinValidationResult,
+} from './types.js'

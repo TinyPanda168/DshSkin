@@ -1,0 +1,33 @@
+{
+  "name": "@dsh-skins/spec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schema": "./schema/dsh-skin.schema.json",
+    "./registry-schema": "./schema/dsh-skin-registry.schema.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "license": "MIT"
+}

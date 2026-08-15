@@ -1,0 +1,24 @@
+{
+  "name": "dsh-skins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "build": "pnpm --filter @dsh-skins/spec build && pnpm --filter @dsh-skins/adapter-dsh-web build && pnpm --filter @dsh-skins/cli build",
+    "test": "pnpm -r --if-present test",
+    "skin": "node packages/cli/dist/bin.js",
+    "registry:validate": "node packages/cli/dist/bin.js validate skins/ocean-mint && node packages/cli/dist/bin.js registry registry/registry.json",
+    "check": "pnpm run build && pnpm run test && pnpm run registry:validate"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "jsdom": "^30.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "license": "MIT"
+}
