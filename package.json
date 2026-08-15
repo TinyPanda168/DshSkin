@@ -1,25 +1,46 @@
 {
-  "name": "dsh-skins",
+  "name": "@specsrelay/dsh-deepseek",
   "version": "0.1.0",
-  "private": true,
+  "description": "DeepSeek-first SpecsRelay inbox and draft handoff for DeepSeek Harness.",
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
-  "engines": {
-    "node": ">=22.19"
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TinyPanda168/SpecsRelay-DSH.git"
   },
-  "scripts": {
-    "build": "pnpm --filter @dsh-skins/spec build && pnpm --filter @dsh-skins/adapter-dsh-web build && pnpm --filter @dsh-skins/plugin-dsh-web build && pnpm --filter @dsh-skins/cli build && pnpm --filter @dsh-skins/studio build",
-    "test": "pnpm -r --if-present test",
-    "studio": "pnpm --filter @dsh-skins/studio dev",
-    "skin": "node packages/cli/dist/bin.js",
-    "registry:validate": "node packages/cli/dist/bin.js validate skins/ocean-mint && node packages/cli/dist/bin.js validate skins/blue-whale-navigator && node packages/cli/dist/bin.js registry registry/registry.json",
-    "check": "pnpm run build && pnpm run test && pnpm run registry:validate"
+  "homepage": "https://github.com/TinyPanda168/SpecsRelay-DSH#readme",
+  "bugs": {
+    "url": "https://github.com/TinyPanda168/SpecsRelay-DSH/issues"
   },
-  "devDependencies": {
-    "@types/node": "^26.2.0",
-    "jsdom": "^30.0.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
   },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek",
+    "specsrelay"
+  ],
   "license": "MIT"
 }

@@ -1,0 +1,3 @@
+- insert:
+    - id: specsrelay-deepseek
+      name: '@specsrelay/dsh-deepseek'
