@@ -1,7 +1,7 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.3.0",
-  "description": "DeepSeek conversation capture, requirement summary, and draft handoff inside DeepSeek Harness WebUI.",
+  "version": "0.4.0",
+  "description": "Persistent SpecsRelay sidebar, DeepSeek requirement summary, and draft handoff inside DeepSeek Harness WebUI.",
   "type": "module",
   "main": "index.js",
   "repository": {
@@ -14,13 +14,13 @@
   },
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js",
+    "./client": "./client-native.js",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
-    "client.js",
-    "browser-bridge",
+    "client-native.js",
+    "lib",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
