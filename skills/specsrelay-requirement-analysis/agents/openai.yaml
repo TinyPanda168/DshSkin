@@ -1,0 +1,4 @@
+interface:
+  display_name: "SpecsRelay Requirement Analysis"
+  short_description: "Strengthen one DeepSeek chat into a DSH handoff"
+  default_prompt: "Use $specsrelay-requirement-analysis to turn this DeepSeek conversation into a clarified DSH development handoff."

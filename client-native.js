@@ -14,9 +14,7 @@
 
       const API = "/specsrelay/v1";
       const DEEPSEEK_URL = "https://chat.deepseek.com/";
-      const MAX_REQUIREMENT_SOURCES = 5;
       const MAX_REQUIREMENT_SOURCE_CHARS = 500000;
-      const MAX_COMBINED_SOURCE_CHARS = 118000;
       const MAX_WORKSPACE_HISTORY = 3;
       const WORKSPACE_STORAGE_PREFIX = "specsrelay.dsh.workspace.v1:";
       const SPECSRELAY_ICON = "data:image/png;base64,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";
@@ -158,7 +156,7 @@ ${listLines(handoff.open_questions)}`;
         if (!text) throw new Error("没有读取到对话内容，请复制后重试或手动粘贴。");
         if (text.length > MAX_REQUIREMENT_SOURCE_CHARS) {
           throw new Error(
-            `单个来源不能超过 ${MAX_REQUIREMENT_SOURCE_CHARS.toLocaleString()} 个字符。`
+            `DeepSeek 对话不能超过 ${MAX_REQUIREMENT_SOURCE_CHARS.toLocaleString()} 个字符。`
           );
         }
         return text;
@@ -195,42 +193,33 @@ ${listLines(handoff.open_questions)}`;
             created_at: item?.created_at || new Date().toISOString(),
             updated_at: item?.updated_at || new Date().toISOString()
           });
-          if (normalized.length === MAX_REQUIREMENT_SOURCES) break;
+          break;
         }
-        const primary = normalized.findIndex((source) => source.primary);
-        return normalized.map((source, index) => ({
+        return normalized.map((source) => ({
           ...source,
-          primary: index === (primary >= 0 ? primary : 0)
+          primary: true
         }));
       }
 
       function addRequirementSource(sources, text, sourceKind) {
-        const normalized = normalizeSources(sources);
         const transcript = normalizeImportedText(text);
         const identity = `paste:${stableHash(transcript)}`;
-        const existing = normalized.find((source) => source.identity === identity);
-        if (!existing && normalized.length >= MAX_REQUIREMENT_SOURCES) {
-          throw new Error(`一个需求最多保存 ${MAX_REQUIREMENT_SOURCES} 个来源。`);
-        }
         const now = new Date().toISOString();
         const source = {
-          id: existing?.id || `source_${stableHash(`${identity}:${now}`)}`,
+          id: `source_${stableHash(`${identity}:${now}`)}`,
           identity,
           kind: "paste",
           provider: "DeepSeek",
-          title: sourceKind === "clipboard" ? "DeepSeek 剪贴板对话" : "DeepSeek 粘贴内容",
+          title:
+            sourceKind === "clipboard"
+              ? "当前 DeepSeek 网页对话"
+              : "手动粘贴的 DeepSeek 对话",
           transcript,
-          primary: existing?.primary ?? normalized.length === 0,
-          created_at: existing?.created_at || now,
+          primary: true,
+          created_at: now,
           updated_at: now
         };
-        return normalizeSources(
-          existing
-            ? normalized.map((candidate) =>
-                candidate.id === existing.id ? source : candidate
-              )
-            : [...normalized, source]
-        );
+        return normalizeSources([source]);
       }
 
       function sourcesFingerprint(sources) {
@@ -248,37 +237,8 @@ ${listLines(handoff.open_questions)}`;
           : "";
       }
 
-      function boundedSourceTranscript(value, limit) {
-        const safe = value.replace(
-          /<\/?requirement_source\b/gi,
-          "[escaped requirement source boundary]"
-        );
-        if (safe.length <= limit) return safe;
-        const marker = "\n\n[中间内容已省略，以满足多来源整理长度限制]\n\n";
-        const available = Math.max(0, limit - marker.length);
-        return `${safe.slice(0, Math.ceil(available * 0.6))}${marker}${safe.slice(
-          -Math.floor(available * 0.4)
-        )}`;
-      }
-
       function formatSourcesTranscript(sources) {
-        const normalized = normalizeSources(sources);
-        const overhead = normalized.length * 140;
-        const available = Math.max(0, MAX_COMBINED_SOURCE_CHARS - overhead);
-        const weights = normalized.map((source) => (source.primary ? 2 : 1));
-        const total = weights.reduce((sum, weight) => sum + weight, 0);
-        return normalized
-          .map((source, index) => {
-            const limit = Math.floor((available * weights[index]) / total);
-            const title = source.title.replaceAll('"', "&quot;");
-            return `<requirement_source index="${index + 1}" primary="${
-              source.primary ? "yes" : "no"
-            }" provider="DeepSeek" title="${title}">\n${boundedSourceTranscript(
-              source.transcript,
-              limit
-            )}\n</requirement_source>`;
-          })
-          .join("\n\n");
+        return normalizeSources(sources)[0]?.transcript ?? "";
       }
 
       function normalizeWorkspace(value) {
@@ -755,8 +715,8 @@ ${listLines(handoff.open_questions)}`;
         );
       }
 
-      function RequirementSourcesPanel({ onPrimary, onRemove, sources }) {
-        if (sources.length === 0) {
+      function DeepSeekConversationPanel({ onRemove, source }) {
+        if (!source) {
           return h(
             "section",
             {
@@ -768,35 +728,31 @@ ${listLines(handoff.open_questions)}`;
                 padding: 16
               }
             },
-            "当前需求还没有来源。请先在左侧 DeepSeek 页面复制内容，再保存到需求工作台。"
+            "尚未导入当前 DeepSeek 对话。请在左侧对话中复制需要交接的完整聊天，再从剪贴板导入。"
           );
         }
         return h(
           "section",
           {
-            "aria-label": "当前需求来源",
+            "aria-label": "当前 DeepSeek 对话",
             style: {
               display: "grid",
               gap: 9
             }
           },
-          ...sources.map((source, index) =>
+          h(
+            "article",
+            {
+              style: {
+                background: "var(--dsw-alias-bg-layer-2)",
+                border: "1px solid var(--dsw-alias-brand-primary, #4d6bfe)",
+                borderRadius: 10,
+                display: "grid",
+                gap: 7,
+                padding: 10
+              }
+            },
             h(
-              "article",
-              {
-                key: source.id,
-                style: {
-                  background: "var(--dsw-alias-bg-layer-2)",
-                  border: source.primary
-                    ? "1px solid var(--dsw-alias-brand-primary, #4d6bfe)"
-                    : "1px solid transparent",
-                  borderRadius: 10,
-                  display: "grid",
-                  gap: 7,
-                  padding: 10
-                }
-              },
-              h(
                 "div",
                 {
                   style: {
@@ -806,18 +762,17 @@ ${listLines(handoff.open_questions)}`;
                     justifyContent: "space-between"
                   }
                 },
-                h("strong", { style: { fontSize: 13 } }, `${index + 1}. ${source.title}`),
-                source.primary &&
-                  h(
-                    "span",
-                    {
-                      style: {
-                        color: "var(--dsw-alias-brand-primary, #4d6bfe)",
-                        fontSize: 11
-                      }
-                    },
-                    "主要来源"
-                  )
+                h("strong", { style: { fontSize: 13 } }, source.title),
+                h(
+                  "span",
+                  {
+                    style: {
+                      color: "var(--dsw-alias-brand-primary, #4d6bfe)",
+                      fontSize: 11
+                    }
+                  },
+                  "唯一来源"
+                )
               ),
               h(
                 "div",
@@ -845,29 +800,14 @@ ${listLines(handoff.open_questions)}`;
                 source.transcript.length > 360 ? "\n…" : ""
               ),
               h(
-                "div",
-                { style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr" } },
-                h(
-                  "button",
-                  {
-                    type: "button",
-                    disabled: source.primary,
-                    style: { ...buttonStyle, minHeight: 27, padding: "2px 7px" },
-                    onClick: () => onPrimary(source.id)
-                  },
-                  source.primary ? "当前主要来源" : "设为主要来源"
-                ),
-                h(
-                  "button",
-                  {
-                    type: "button",
-                    style: { ...buttonStyle, minHeight: 27, padding: "2px 7px" },
-                    onClick: () => onRemove(source.id)
-                  },
-                  "移除"
-                )
+                "button",
+                {
+                  type: "button",
+                  style: { ...buttonStyle, minHeight: 27, padding: "2px 7px" },
+                  onClick: onRemove
+                },
+                "移除当前对话"
               )
-            )
           )
         );
       }
@@ -1113,7 +1053,7 @@ ${listLines(handoff.open_questions)}`;
           setReviewResult(null);
           setMessageKind("success");
           setMessage(
-            `已保存${source === "clipboard" ? "剪贴板" : "手动粘贴"}来源，尚未调用模型。`
+            `已导入${source === "clipboard" ? "剪贴板中的" : "手动粘贴的"} DeepSeek 对话，尚未调用模型。再次导入会替换当前对话。`
           );
         };
 
@@ -1167,8 +1107,8 @@ ${listLines(handoff.open_questions)}`;
             setMessageKind("success");
             setMessage(
               data.requiresClarification
-                ? "需求已整合，但仍有需要你确认的产品决定。"
-                : `已由 DSH 的 ${data.provider} · ${data.model} 完成需求整合。`
+                ? "需求分析 Skill 已完成强化，但仍有需要你确认的产品决定。"
+                : `已使用 ${data.skill?.name || "SpecsRelay 需求分析 Skill"}，并由 DSH 的 ${data.provider} · ${data.model} 完成需求整理。`
             );
           } catch (error) {
             setMessageKind("error");
@@ -1205,7 +1145,9 @@ ${listLines(handoff.open_questions)}`;
             if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
             setReviewResult(data);
             setMessageKind("success");
-            setMessage(`已由 DSH 的 ${data.provider} · ${data.model} 完成三角色评审。`);
+            setMessage(
+              `已继续使用 ${data.skill?.name || "SpecsRelay 需求分析 Skill"}，并由 DSH 的 ${data.provider} · ${data.model} 完成三角色评审。`
+            );
           } catch (error) {
             setMessageKind("error");
             setMessage(error instanceof Error ? error.message : String(error));
@@ -1432,7 +1374,7 @@ ${listLines(handoff.open_questions)}`;
                       style: { ...buttonStyle, minHeight: 28, padding: "3px 8px" },
                       onClick: () => setPanel("home")
                     },
-                    "需求工作台"
+                    "需求分析"
                   ),
                   h(
                     "button",
@@ -1514,7 +1456,7 @@ ${listLines(handoff.open_questions)}`;
                               margin: 0
                             }
                           },
-                          "像 Chrome 版一样，先把多个对话片段保存到当前需求工作台；确认来源后再统一调用 DSH 已配置的 DeepSeek 模型整合。"
+                          "唯一来源是左侧当前 DeepSeek 网页对话。导入后，SpecsRelay 会调用 DSH 已配置的 DeepSeek 模型，并使用内置需求分析 Skill 强化需求。"
                         ),
                         h(
                           "div",
@@ -1533,7 +1475,11 @@ ${listLines(handoff.open_questions)}`;
                               style: buttonStyle,
                               onClick: () => void importClipboard()
                             },
-                            busy === "clipboard" ? "读取中…" : "从剪贴板导入"
+                            busy === "clipboard"
+                              ? "读取中…"
+                              : sources.length
+                                ? "从剪贴板替换当前对话"
+                                : "从剪贴板导入当前对话"
                           ),
                           h(
                             "button",
@@ -1585,33 +1531,16 @@ ${listLines(handoff.open_questions)}`;
                                   }
                                 }
                               },
-                              "保存为需求来源"
+                              sources.length ? "替换当前 DeepSeek 对话" : "使用这份 DeepSeek 对话"
                             )
                           ),
-                        h(RequirementSourcesPanel, {
-                          sources,
-                          onPrimary: (sourceId) => {
-                            setSources((items) =>
-                              normalizeSources(
-                                items.map((source) => ({
-                                  ...source,
-                                  primary: source.id === sourceId
-                                }))
-                              )
-                            );
+                        h(DeepSeekConversationPanel, {
+                          source: sources[0] || null,
+                          onRemove: () => {
+                            setSources([]);
                             setReviewResult(null);
                             setMessageKind("success");
-                            setMessage("主要来源已更新，尚未调用模型。");
-                          },
-                          onRemove: (sourceId) => {
-                            setSources((items) =>
-                              normalizeSources(
-                                items.filter((source) => source.id !== sourceId)
-                              )
-                            );
-                            setReviewResult(null);
-                            setMessageKind("success");
-                            setMessage("来源已移除，尚未调用模型。");
+                            setMessage("当前 DeepSeek 对话已移除，尚未调用模型。");
                           }
                         }),
                         sources.length > 0 &&
@@ -1626,8 +1555,8 @@ ${listLines(handoff.open_questions)}`;
                               }
                             },
                             needsIntegration
-                              ? `${sources.length}/${MAX_REQUIREMENT_SOURCES} 个来源 · 待整合`
-                              : `${sources.length}/${MAX_REQUIREMENT_SOURCES} 个来源 · 已整合`
+                              ? "当前 DeepSeek 对话 · 待 Skill 分析"
+                              : "当前 DeepSeek 对话 · 已完成 Skill 分析"
                           ),
                         h(
                           "button",
@@ -1642,10 +1571,10 @@ ${listLines(handoff.open_questions)}`;
                             onClick: () => void organize("summary")
                           },
                           busy === "summary"
-                            ? "整合中…"
+                            ? "Skill 分析中…"
                             : summary
-                              ? "重新整合并增强来源"
-                              : "整合并增强来源"
+                              ? "重新使用 Skill 分析需求"
+                              : "使用 Skill 分析并整理需求"
                         ),
                         history.length > 0 &&
                           h(
@@ -1723,7 +1652,7 @@ ${listLines(handoff.open_questions)}`;
                     padding: "9px 14px"
                   }
                 },
-                "来源、当前需求和最近 3 份恢复记录保存在此浏览器；只有点击整合、澄清或评审后才调用 DSH 的 DeepSeek 模型。"
+                "当前 DeepSeek 对话、需求和最近 3 份恢复记录保存在此浏览器；只有点击 Skill 分析、澄清或评审后才调用 DSH 已配置的 DeepSeek 模型。无需另填 API Key。"
               )
             )
           ),

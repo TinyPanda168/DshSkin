@@ -1,7 +1,7 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.5.0",
-  "description": "Chrome-parity SpecsRelay requirement workspace and DeepSeek handoff inside DeepSeek Harness WebUI.",
+  "version": "0.6.0",
+  "description": "Single-conversation DeepSeek requirement analysis skill and DSH handoff workflow.",
   "type": "module",
   "main": "index.js",
   "repository": {
@@ -21,6 +21,7 @@
     "index.js",
     "client-native.js",
     "lib",
+    "skills",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
