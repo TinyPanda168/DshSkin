@@ -1,7 +1,7 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.4.0",
-  "description": "Persistent SpecsRelay sidebar, DeepSeek requirement summary, and draft handoff inside DeepSeek Harness WebUI.",
+  "version": "0.5.0",
+  "description": "Chrome-parity SpecsRelay requirement workspace and DeepSeek handoff inside DeepSeek Harness WebUI.",
   "type": "module",
   "main": "index.js",
   "repository": {
