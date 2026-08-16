@@ -16,12 +16,13 @@ import {
   isRepairableHandoffError,
   parseHandoffResponse
 } from "./lib/handoff.js";
+import { createSteelBrowserHost } from "./lib/steel-browser.js";
 
 export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.7.1";
+export const PLUGIN_VERSION = "0.8.0";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
@@ -121,6 +122,23 @@ function isLoopbackAddress(value) {
     value === "::1" ||
     value === "::ffff:127.0.0.1"
   );
+}
+
+function isBrowserRequestAllowed(req) {
+  if (isLoopbackAddress(req.socket.remoteAddress)) return true;
+  if (req.headers["sec-fetch-site"] === "same-origin") return true;
+  const origin = req.headers.origin;
+  const host = req.headers.host;
+  if (typeof origin !== "string" || typeof host !== "string") return false;
+  try {
+    const parsed = new URL(origin);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.host === host
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function readJsonBody(req, maxBytes = MAX_INGRESS_BODY_BYTES) {
@@ -888,12 +906,12 @@ export async function reviewRequirement(ctx, request) {
   };
 }
 
-function registerBrowserRoutes(ctx, inbox, captures) {
-  const requireLoopback = (req, res) => {
-    if (isLoopbackAddress(req.socket.remoteAddress)) {
+function registerBrowserRoutes(ctx, inbox, captures, browser) {
+  const requireBrowserClient = (req, res) => {
+    if (isBrowserRequestAllowed(req)) {
       return true;
     }
-    jsonResponse(res, 403, { error: "Loopback requests only." });
+    jsonResponse(res, 403, { error: "Same-origin DSH requests only." });
     return false;
   };
 
@@ -901,7 +919,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/handoffs",
     handler: (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "GET") {
         res.setHeader("allow", "GET");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -914,7 +932,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/handoffs/latest",
     handler: (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "GET") {
         res.setHeader("allow", "GET");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -927,7 +945,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/captures/latest",
     handler: (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "GET") {
         res.setHeader("allow", "GET");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -944,11 +962,109 @@ function registerBrowserRoutes(ctx, inbox, captures) {
       jsonResponse(res, 200, { item: captures.latest(requestId) });
     }
   });
+  const disposeBrowserStatus = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/v1/browser/status",
+    handler: (req, res) => {
+      if (!requireBrowserClient(req, res)) return;
+      if (req.method !== "GET") {
+        res.setHeader("allow", "GET");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      jsonResponse(res, 200, browser.status());
+    }
+  });
+  const disposeBrowserStart = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/v1/browser/start",
+    handler: async (req, res) => {
+      if (!requireBrowserClient(req, res)) return;
+      if (req.method !== "POST") {
+        res.setHeader("allow", "POST");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      try {
+        jsonResponse(res, 200, await browser.ensureReady());
+      } catch (error) {
+        jsonResponse(res, 503, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
+  const disposeBrowserCapture = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/v1/browser/capture",
+    handler: async (req, res) => {
+      if (!requireBrowserClient(req, res)) return;
+      if (req.method !== "POST") {
+        res.setHeader("allow", "POST");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      try {
+        jsonResponse(res, 200, { item: await browser.capture() });
+      } catch (error) {
+        jsonResponse(res, 400, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
+  const disposeBrowserViewer = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/steel/v1/sessions/debug",
+    handler: async (req, res) => {
+      if (!requireBrowserClient(req, res)) return;
+      if (req.method !== "GET") {
+        res.setHeader("allow", "GET");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      try {
+        const host = req.headers.host;
+        if (typeof host !== "string" || !/^[A-Za-z0-9.:[\]-]+$/.test(host)) {
+          throw new Error("Invalid DSH host header.");
+        }
+        const forwarded = req.headers["x-forwarded-proto"];
+        const protocol =
+          (Array.isArray(forwarded) ? forwarded[0] : forwarded) === "https"
+            ? "wss"
+            : "ws";
+        const html = await browser.viewerHtml(
+          `${protocol}://${host}/specsrelay/steel/v1/sessions/cast`
+        );
+        res.writeHead(200, {
+          "cache-control": "no-store",
+          "content-length": Buffer.byteLength(html),
+          "content-security-policy": "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src ws: wss:;",
+          "content-type": "text/html; charset=utf-8"
+        });
+        res.end(html);
+      } catch (error) {
+        jsonResponse(res, 503, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
+  const disposeBrowserSocket = ctx.webServer.registerUpgrade({
+    path: "/specsrelay/steel/v1/sessions/cast",
+    handler: (req, socket, head) => {
+      if (!isBrowserRequestAllowed(req)) {
+        socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+        return;
+      }
+      browser.proxyWebSocket(req, socket, head);
+    }
+  });
   const disposeReceipt = ctx.webServer.register({
     kind: "exact",
     path: "/specsrelay/v1/receipts",
     handler: async (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "POST") {
         res.setHeader("allow", "POST");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -976,7 +1092,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/organize",
     handler: async (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "POST") {
         res.setHeader("allow", "POST");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -996,7 +1112,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/organizer/status",
     handler: (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "GET") {
         res.setHeader("allow", "GET");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -1022,7 +1138,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     kind: "exact",
     path: "/specsrelay/v1/review",
     handler: async (req, res) => {
-      if (!requireLoopback(req, res)) return;
+      if (!requireBrowserClient(req, res)) return;
       if (req.method !== "POST") {
         res.setHeader("allow", "POST");
         jsonResponse(res, 405, { error: "Method not allowed." });
@@ -1043,6 +1159,11 @@ function registerBrowserRoutes(ctx, inbox, captures) {
     disposeOrganizerStatus();
     disposeOrganizer();
     disposeReceipt();
+    disposeBrowserSocket();
+    disposeBrowserViewer();
+    disposeBrowserCapture();
+    disposeBrowserStart();
+    disposeBrowserStatus();
     disposeCapture();
     disposeLatest();
     disposeInbox();
@@ -1058,8 +1179,9 @@ export async function apply(ctx) {
 
   const inbox = createInbox();
   const captures = createCaptureInbox();
+  const browser = createSteelBrowserHost();
   ctx.effect(
-    () => registerBrowserRoutes(ctx, inbox, captures),
+    () => registerBrowserRoutes(ctx, inbox, captures, browser),
     "specsrelay-deepseek: WebUI routes"
   );
 

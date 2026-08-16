@@ -1,6 +1,6 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Single-conversation DeepSeek requirement analysis skill and DSH handoff workflow.",
   "type": "module",
   "main": "index.js",
@@ -24,7 +24,9 @@
     "skills",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "third_party"
   ],
   "dsh": {
     "bundle": {

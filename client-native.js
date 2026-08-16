@@ -33,14 +33,6 @@
       } = require("@deepseek-ai/dsh-client-ui-primitives");
 
       const API = "/specsrelay/v1";
-      const DEEPSEEK_URL = "https://chat.deepseek.com/";
-      const DEEPSEEK_ORIGIN = "https://chat.deepseek.com";
-      const CAPTURE_PROTOCOL_VERSION = 1;
-      const CAPTURE_PROBE_TYPE = "specsrelay.dsh.capture.probe";
-      const CAPTURE_READY_TYPE = "specsrelay.dsh.capture.ready";
-      const CAPTURE_REQUEST_TYPE = "specsrelay.dsh.capture.request";
-      const CAPTURE_RESULT_TYPE = "specsrelay.dsh.capture.result";
-      const CAPTURE_TIMEOUT_MS = 90000;
       const MAX_EXECUTION_SNAPSHOTS = 12;
       const MAX_REQUIREMENT_SOURCE_CHARS = 500000;
       const MAX_WORKSPACE_HISTORY = 3;
@@ -469,18 +461,19 @@ ${listLines(handoff.open_questions)}`;
               "div",
               { style: { display: "grid", gap: 3, minWidth: 0 } },
               h("h2", { style: { fontSize: 16, margin: 0 } }, title),
-              h(
-                "p",
-                {
-                  style: {
-                    color: "var(--dsw-alias-text-tertiary)",
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    margin: 0
-                  }
-                },
-                description
-              )
+              description &&
+                h(
+                  "p",
+                  {
+                    style: {
+                      color: "var(--dsw-alias-text-tertiary)",
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                      margin: 0
+                    }
+                  },
+                  description
+                )
             )
           ),
           children
@@ -730,69 +723,6 @@ ${listLines(handoff.open_questions)}`;
         );
       }
 
-      function DshTargetStep({ projectPath }) {
-        return h(
-          WorkflowStep,
-          {
-            number: 2,
-            title: "选择目标 DSH Agent",
-            description: "当前 DSH 版只交接给正在使用的 DeepSeek Harness 会话。"
-          },
-          h(
-            "section",
-            { style: { display: "grid", gap: 8 } },
-            h("strong", { style: { fontSize: 12 } }, "目标 Coding Agent"),
-            h(
-              "div",
-              {
-                style: {
-                  alignItems: "center",
-                  background: "var(--dsw-alias-bg-layer-2)",
-                  border: "1px solid var(--dsw-alias-border-subtle)",
-                  borderRadius: 9,
-                  display: "flex",
-                  gap: 8,
-                  minHeight: 38,
-                  padding: "0 10px"
-                }
-              },
-              h(StateDot, { state: "done" }),
-              h("span", { style: { fontSize: 13 } }, "当前 DeepSeek Harness 会话"),
-              h(Pill, { active: true, style: { marginLeft: "auto" } }, "固定目标")
-            ),
-            h(
-              "p",
-              { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, lineHeight: 1.45, margin: 0 } },
-              "需求会载入当前会话的输入草稿，由你最后检查并发送，不会自动启动 Agent。"
-            )
-          ),
-          h(
-            "section",
-            { style: { display: "grid", gap: 7 } },
-            h("strong", { style: { fontSize: 12 } }, "项目目录"),
-            h(
-              "code",
-              {
-                title: projectPath,
-                style: {
-                  background: "var(--dsw-alias-bg-layer-2)",
-                  border: "1px solid var(--dsw-alias-border-subtle)",
-                  borderRadius: 9,
-                  color: projectPath
-                    ? "var(--dsw-alias-text-secondary)"
-                    : "var(--dsw-alias-state-warning-primary)",
-                  fontSize: 11,
-                  lineHeight: 1.5,
-                  overflowWrap: "anywhere",
-                  padding: 10
-                }
-              },
-              projectPath || "当前 DSH 会话尚未关联项目"
-            )
-          )
-        );
-      }
-
       function DeliveryStep({
         alreadyLoaded,
         busy,
@@ -826,10 +756,29 @@ ${listLines(handoff.open_questions)}`;
         return h(
           WorkflowStep,
           {
-            number: 3,
+            number: 2,
             title: "检查并载入",
-            description: "下面的完整指令会载入当前 DSH 会话草稿。"
+            description: ""
           },
+          h(
+            "code",
+            {
+              title: projectPath,
+              style: {
+                background: "var(--dsw-alias-bg-layer-2)",
+                border: "1px solid var(--dsw-alias-border-subtle)",
+                borderRadius: 9,
+                color: projectPath
+                  ? "var(--dsw-alias-text-secondary)"
+                  : "var(--dsw-alias-state-warning-primary)",
+                fontSize: 11,
+                lineHeight: 1.5,
+                overflowWrap: "anywhere",
+                padding: 10
+              }
+            },
+            projectPath || "尚未关联项目目录"
+          ),
           h("textarea", {
             readOnly: true,
             rows: 12,
@@ -859,7 +808,7 @@ ${listLines(handoff.open_questions)}`;
               disabled: !ready || Boolean(busy) || alreadyLoaded,
               onChange: (event) => setConfirmed(event.target.checked)
             }),
-            "我已核对当前 DSH 会话、项目目录和草稿提示词。"
+            "我已核对项目目录和草稿提示词。"
           ),
           h(
             Button,
@@ -1145,7 +1094,8 @@ ${listLines(handoff.open_questions)}`;
         useSessions
       }) {
         const [busy, setBusy] = useState("");
-        const [captureBridgeReady, setCaptureBridgeReady] = useState(false);
+        const [browserState, setBrowserState] = useState("starting");
+        const [viewerUrl, setViewerUrl] = useState("");
         const [compactLayout, setCompactLayout] = useState(false);
         const [compactPane, setCompactPane] = useState("web");
         const [frameKey, setFrameKey] = useState(0);
@@ -1166,8 +1116,6 @@ ${listLines(handoff.open_questions)}`;
         const [panel, setPanel] = useState("workbench");
         const [reviewResult, setReviewResult] = useState(null);
         const [summary, setSummary] = useState(null);
-        const captureFrameRef = useRef(null);
-        const capturePendingRef = useRef(null);
         const viewRef = useRef(null);
         const state = useInbox();
         const currentWorkspace = useSessions(
@@ -1212,51 +1160,6 @@ ${listLines(handoff.open_questions)}`;
           });
           observer.observe(node);
           return () => observer.disconnect();
-        }, []);
-
-        useEffect(() => {
-          const onCaptureMessage = (event) => {
-            if (
-              event.origin !== DEEPSEEK_ORIGIN ||
-              event.source !== captureFrameRef.current?.contentWindow
-            ) {
-              return;
-            }
-            const value = event.data;
-            if (
-              !value ||
-              typeof value !== "object" ||
-              value.protocolVersion !== CAPTURE_PROTOCOL_VERSION
-            ) {
-              return;
-            }
-            if (value.type === CAPTURE_READY_TYPE) {
-              setCaptureBridgeReady(true);
-              return;
-            }
-            const pending = capturePendingRef.current;
-            if (
-              value.type !== CAPTURE_RESULT_TYPE ||
-              !pending ||
-              value.requestId !== pending.requestId
-            ) {
-              return;
-            }
-            clearTimeout(pending.timeoutId);
-            capturePendingRef.current = null;
-            if (value.ok) pending.resolve(value.receipt);
-            else pending.reject(new Error(value.error || "自动抓取失败。"));
-          };
-          window.addEventListener("message", onCaptureMessage);
-          return () => {
-            window.removeEventListener("message", onCaptureMessage);
-            const pending = capturePendingRef.current;
-            if (pending) {
-              clearTimeout(pending.timeoutId);
-              capturePendingRef.current = null;
-              pending.reject(new Error("DeepSeek 捕获页面已关闭。"));
-            }
-          };
         }, []);
 
         useEffect(() => {
@@ -1366,65 +1269,28 @@ ${listLines(handoff.open_questions)}`;
           }
         };
 
-        const probeCaptureBridge = () => {
-          const target = captureFrameRef.current?.contentWindow;
-          if (!target) return;
-          target.postMessage(
-            {
-              type: CAPTURE_PROBE_TYPE,
-              protocolVersion: CAPTURE_PROTOCOL_VERSION
-            },
-            DEEPSEEK_ORIGIN
-          );
+        const startBrowser = async ({ reload = false } = {}) => {
+          setBrowserState("starting");
+          setMessage("");
+          try {
+            const response = await fetch(`${API}/browser/start`, {
+              method: "POST"
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            setViewerUrl(String(data.viewerUrl || ""));
+            setBrowserState("ready");
+            if (reload) setFrameKey((value) => value + 1);
+          } catch (error) {
+            setBrowserState("error");
+            setMessageKind("error");
+            setMessage(error instanceof Error ? error.message : String(error));
+          }
         };
 
-        const requestCaptureDelivery = (requestId) => {
-          const target = captureFrameRef.current?.contentWindow;
-          if (!target) {
-            return Promise.reject(new Error("DeepSeek 网页尚未准备好。"));
-          }
-          return new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-              if (capturePendingRef.current?.requestId === requestId) {
-                capturePendingRef.current = null;
-              }
-              reject(
-                new Error(
-                  "自动抓取组件未响应。请确认 SpecsRelay 浏览器扩展已更新并允许访问 DeepSeek。"
-                )
-              );
-            }, CAPTURE_TIMEOUT_MS);
-            capturePendingRef.current = {
-              requestId,
-              resolve,
-              reject,
-              timeoutId
-            };
-            target.postMessage(
-              {
-                type: CAPTURE_REQUEST_TYPE,
-                protocolVersion: CAPTURE_PROTOCOL_VERSION,
-                requestId
-              },
-              DEEPSEEK_ORIGIN
-            );
-          });
-        };
-
-        const fetchCapturedConversation = async (requestId) => {
-          const response = await fetch(
-            `${API}/captures/latest?requestId=${encodeURIComponent(requestId)}`,
-            { cache: "no-store" }
-          );
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
-          }
-          if (!data.item) {
-            throw new Error("DSH 尚未收到自动抓取的 DeepSeek 对话。请重试。");
-          }
-          return data.item;
-        };
+        useEffect(() => {
+          void startBrowser();
+        }, []);
 
         const organizeSources = async (kind, sourceItems, extra = {}) => {
           if (sourceItems.length === 0) return;
@@ -1477,13 +1343,16 @@ ${listLines(handoff.open_questions)}`;
           organizeSources(kind, sources, extra);
 
         const captureCurrentConversation = async () => {
-          if (!captureBridgeReady || busy) return;
+          if (browserState !== "ready" || busy) return;
           setBusy("capture");
           setMessage("");
           try {
-            const requestId = crypto.randomUUID();
-            await requestCaptureDelivery(requestId);
-            const capture = await fetchCapturedConversation(requestId);
+            const response = await fetch(`${API}/browser/capture`, {
+              method: "POST"
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            const capture = data.item;
             const nextSources = addCapturedRequirementSource(capture);
             setSources(nextSources);
             setPanel("workbench");
@@ -1746,10 +1615,7 @@ ${listLines(handoff.open_questions)}`;
                   icon: h(IconRefreshOutline16),
                   size: "sm",
                   variant: "toolbar",
-                  onClick: () => {
-                    setCaptureBridgeReady(false);
-                    setFrameKey((value) => value + 1);
-                  }
+                  onClick: () => void startBrowser({ reload: true })
                 },
                 "刷新网页"
               ),
@@ -1790,26 +1656,36 @@ ${listLines(handoff.open_questions)}`;
                   overflow: "hidden"
                 }
               },
-              h("iframe", {
-                key: frameKey,
-                ref: captureFrameRef,
-                src: DEEPSEEK_URL,
-                title: "DeepSeek 网页端",
-                allow: "clipboard-read; clipboard-write",
-                referrerPolicy: "strict-origin-when-cross-origin",
-                onLoad: () => {
-                  setCaptureBridgeReady(false);
-                  setTimeout(probeCaptureBridge, 0);
-                },
-                style: {
-                  background: "#fff",
-                  border: 0,
-                  display: "block",
-                  height: "100%",
-                  minHeight: 500,
-                  width: "100%"
-                }
-              })
+              viewerUrl
+                ? h("iframe", {
+                    key: frameKey,
+                    src: viewerUrl,
+                    title: "DeepSeek 网页端",
+                    allow: "clipboard-read; clipboard-write",
+                    referrerPolicy: "same-origin",
+                    style: {
+                      background: "#fff",
+                      border: 0,
+                      display: "block",
+                      height: "100%",
+                      minHeight: 500,
+                      width: "100%"
+                    }
+                  })
+                : h(
+                    "div",
+                    {
+                      style: {
+                        alignItems: "center",
+                        color: "var(--dsw-alias-text-tertiary)",
+                        display: "flex",
+                        height: "100%",
+                        justifyContent: "center",
+                        minHeight: 500
+                      }
+                    },
+                    browserState === "error" ? "DeepSeek 暂不可用" : "正在准备 DeepSeek…"
+                  )
             ),
             h(
               "aside",
@@ -1921,13 +1797,15 @@ ${listLines(handoff.open_questions)}`;
                             padding: "0 10px"
                           }
                         },
-                        h(StateDot, { state: captureBridgeReady ? "done" : "warning" }),
+                        h(StateDot, { state: browserState === "ready" ? "done" : "warning" }),
                         h(
                           "span",
                           { style: { fontSize: 12 } },
-                          captureBridgeReady
-                            ? "DeepSeek 网页捕获已连接"
-                            : "正在等待 DeepSeek 网页捕获组件"
+                          browserState === "ready"
+                            ? "DeepSeek 已连接"
+                            : browserState === "error"
+                              ? "DeepSeek 暂不可用"
+                              : "正在准备 DeepSeek"
                         )
                       ),
                       h(
@@ -2036,21 +1914,21 @@ ${listLines(handoff.open_questions)}`;
                               padding: "0 10px"
                             }
                           },
-                          h(StateDot, { state: captureBridgeReady ? "done" : "warning" }),
+                          h(StateDot, { state: browserState === "ready" ? "done" : "warning" }),
                           h(
                             "span",
                             { style: { color: "var(--dsw-alias-text-secondary)", flex: 1, fontSize: 11, lineHeight: 1.4 } },
-                            captureBridgeReady
-                              ? "已识别当前 DeepSeek 网页，可以自动抓取完整多轮对话。"
-                              : "当前网页暂时无法自动抓取，请刷新网页或使用备用粘贴。"
+                            browserState === "ready"
+                              ? "可以抓取当前完整对话。"
+                              : "DeepSeek 准备完成后即可抓取。"
                           ),
-                          !captureBridgeReady &&
-                            h(Button, { size: "sm", variant: "ghost", onClick: probeCaptureBridge }, "重试")
+                          browserState === "error" &&
+                            h(Button, { size: "sm", variant: "ghost", onClick: () => void startBrowser({ reload: true }) }, "重试")
                         ),
                         h(
                           Button,
                           {
-                            disabled: !captureBridgeReady || Boolean(busy),
+                            disabled: browserState !== "ready" || Boolean(busy),
                             icon: h(IconEnhanceOutline16),
                             variant: "primary",
                             onClick: () => void captureCurrentConversation()
@@ -2134,13 +2012,12 @@ ${listLines(handoff.open_questions)}`;
                               setMessage("已采用增强后的结构化需求。");
                             },
                             onClarify: () => void clarify(),
-                            onRecapture: captureBridgeReady ? () => void captureCurrentConversation() : null,
+                            onRecapture: browserState === "ready" ? () => void captureCurrentConversation() : null,
                             onReview: () => void review(),
                             reviewResult,
                             sourcesChanged: needsIntegration
                           })
                       ),
-                      h(DshTargetStep, { projectPath: currentWorkspace }),
                       h(DeliveryStep, {
                         alreadyLoaded: currentVersionLoaded,
                         busy,
@@ -2199,7 +2076,7 @@ ${listLines(handoff.open_questions)}`;
                 margin: 0
               }
             },
-            "DeepSeek 登录状态由当前浏览器管理。自动抓取由 SpecsRelay 浏览器捕获组件在当前 DeepSeek 页面内执行，原始对话通过本地桥直接交给 DSH。"
+            "DeepSeek 登录和对话抓取均在此页签完成。"
           )
         );
       }
