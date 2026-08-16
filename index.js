@@ -21,7 +21,7 @@ export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.7.0";
+export const PLUGIN_VERSION = "0.7.1";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
@@ -992,6 +992,32 @@ function registerBrowserRoutes(ctx, inbox, captures) {
       }
     }
   });
+  const disposeOrganizerStatus = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/v1/organizer/status",
+    handler: (req, res) => {
+      if (!requireLoopback(req, res)) return;
+      if (req.method !== "GET") {
+        res.setHeader("allow", "GET");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      try {
+        const sessionId = boundedString(
+          new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get(
+            "sessionId"
+          ),
+          "Session id",
+          160
+        );
+        jsonResponse(res, 200, resolveOrganizerRoute(ctx, sessionId));
+      } catch (error) {
+        jsonResponse(res, 400, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
   const disposeReview = ctx.webServer.register({
     kind: "exact",
     path: "/specsrelay/v1/review",
@@ -1014,6 +1040,7 @@ function registerBrowserRoutes(ctx, inbox, captures) {
   });
   return () => {
     disposeReview();
+    disposeOrganizerStatus();
     disposeOrganizer();
     disposeReceipt();
     disposeCapture();

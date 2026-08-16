@@ -41,6 +41,7 @@
       const CAPTURE_REQUEST_TYPE = "specsrelay.dsh.capture.request";
       const CAPTURE_RESULT_TYPE = "specsrelay.dsh.capture.result";
       const CAPTURE_TIMEOUT_MS = 90000;
+      const MAX_EXECUTION_SNAPSHOTS = 12;
       const MAX_REQUIREMENT_SOURCE_CHARS = 500000;
       const MAX_WORKSPACE_HISTORY = 3;
       const WORKSPACE_STORAGE_PREFIX = "specsrelay.dsh.workspace.v1:";
@@ -217,6 +218,9 @@ ${listLines(handoff.open_questions)}`;
             provider: String(item?.provider || "DeepSeek").slice(0, 120),
             title: String(item?.title || "DeepSeek 对话").slice(0, 500),
             transcript,
+            message_count: Number.isInteger(item?.message_count)
+              ? Math.max(0, item.message_count)
+              : 0,
             primary: Boolean(item?.primary),
             created_at: item?.created_at || new Date().toISOString(),
             updated_at: item?.updated_at || new Date().toISOString()
@@ -262,6 +266,9 @@ ${listLines(handoff.open_questions)}`;
             provider: "DeepSeek",
             title: String(capture?.title || "当前 DeepSeek 网页对话").slice(0, 500),
             transcript,
+            message_count: Number.isInteger(capture?.messageCount)
+              ? capture.messageCount
+              : 0,
             primary: true,
             created_at: capture?.capturedAt || now,
             updated_at: now
@@ -305,7 +312,15 @@ ${listLines(handoff.open_questions)}`;
             : [],
           history: Array.isArray(source.history)
             ? source.history.slice(0, MAX_WORKSPACE_HISTORY)
-            : []
+            : [],
+          executionHistory: normalizeExecutionHistory(source.executionHistory),
+          organizerRoute:
+            source.organizerRoute && typeof source.organizerRoute === "object"
+              ? {
+                  provider: String(source.organizerRoute.provider || ""),
+                  model: String(source.organizerRoute.model || "")
+                }
+              : { provider: "", model: "" }
         };
       }
 
@@ -321,6 +336,44 @@ ${listLines(handoff.open_questions)}`;
 
       function snapshotHasContent(snapshot) {
         return Boolean(snapshot.sources.length || snapshot.handoff);
+      }
+
+      function normalizeExecutionHistory(value) {
+        if (!Array.isArray(value)) return [];
+        return value
+          .filter(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              item.handoff &&
+              typeof item.handoff === "object" &&
+              typeof item.prompt === "string" &&
+              item.prompt.trim()
+          )
+          .slice(0, MAX_EXECUTION_SNAPSHOTS)
+          .map((item) => ({
+            id: String(item.id || crypto.randomUUID()).slice(0, 160),
+            createdAt: String(item.createdAt || new Date().toISOString()),
+            handoff: item.handoff,
+            projectPath: String(item.projectPath || ""),
+            prompt: item.prompt,
+            sources: normalizeSources(item.sources),
+            status: item.status === "loaded" ? "loaded" : "snapshot",
+            fingerprint: String(item.fingerprint || "")
+          }));
+      }
+
+      function createExecutionSnapshot(handoff, projectPath, prompt, sources) {
+        return {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          handoff,
+          projectPath,
+          prompt,
+          sources: normalizeSources(sources),
+          status: "loaded",
+          fingerprint: stableHash(`${projectPath}\n${prompt}`)
+        };
       }
 
       const textAreaStyle = {
@@ -377,26 +430,76 @@ ${listLines(handoff.open_questions)}`;
         );
       }
 
+      const stepCardStyle = {
+        background: "var(--dsw-alias-bg-layer-1)",
+        border: "1px solid var(--dsw-alias-border-subtle)",
+        borderRadius: 14,
+        display: "grid",
+        gap: 14,
+        padding: 14
+      };
+
+      function WorkflowStep({ children, description, number, title }) {
+        return h(
+          "section",
+          { style: stepCardStyle },
+          h(
+            "header",
+            { style: { alignItems: "flex-start", display: "flex", gap: 10 } },
+            h(
+              "span",
+              {
+                style: {
+                  alignItems: "center",
+                  background: "color-mix(in srgb, var(--dsw-alias-brand-primary, #35d39a) 14%, transparent)",
+                  border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                  borderRadius: 7,
+                  color: "var(--dsw-alias-brand-primary, #35d39a)",
+                  display: "inline-flex",
+                  flex: "0 0 24px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  height: 24,
+                  justifyContent: "center"
+                }
+              },
+              String(number)
+            ),
+            h(
+              "div",
+              { style: { display: "grid", gap: 3, minWidth: 0 } },
+              h("h2", { style: { fontSize: 16, margin: 0 } }, title),
+              h(
+                "p",
+                {
+                  style: {
+                    color: "var(--dsw-alias-text-tertiary)",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    margin: 0
+                  }
+                },
+                description
+              )
+            )
+          ),
+          children
+        );
+      }
+
       function HandoffSummaryPanel({
         answers,
         busy,
         handoff,
-        loadDraft,
         onAnswer,
         onApplyReview,
-        onBack,
         onClarify,
         onRecapture,
         onReview,
-        onRevise,
-        projectPath,
         reviewResult,
         sourcesChanged
       }) {
-        const [confirmed, setConfirmed] = useState(false);
         const [message, setMessage] = useState("");
-        const [revisionInstruction, setRevisionInstruction] = useState("");
-        const prompt = formatHandoffPrompt(handoff);
         const questions = Array.isArray(handoff.open_questions)
           ? handoff.open_questions
           : [];
@@ -404,116 +507,44 @@ ${listLines(handoff.open_questions)}`;
           handoff.ready_for_execution === true &&
           questions.length === 0 &&
           !sourcesChanged;
-        const load = () => {
-          const result = loadDraft({
-            handoffId: `dsh-live-${Date.now()}`,
-            objective: handoff.objective,
-            projectPath,
-            prompt,
-            receivedAt: new Date().toISOString(),
-            sourceProvider: "DeepSeek",
-            state: "received",
-            title: handoff.title
-          });
-          setMessage(
-            result.ok
-              ? "已载入当前 DSH 草稿，请检查后发送。"
-              : result.message
-          );
-        };
         return h(
-          "section",
-          { style: { display: "grid", gap: 14 } },
-          h(
-            "header",
-            {
-              style: {
-                alignItems: "center",
-                display: "flex",
-                gap: 10,
-                justifyContent: "space-between"
-              }
-            },
-            h("strong", null, "结构化需求总结"),
-            h(
-              Button,
-              {
-                icon: h(IconChevronLeftOutline14),
-                size: "sm",
-                variant: "ghost",
-                onClick: onBack
-              },
-              "返回"
-            )
-          ),
-          h("h3", { style: { fontSize: 18, margin: 0 } }, handoff.title),
-          h(
-            "div",
-            {
-              style: {
-                color: "var(--dsw-alias-text-tertiary)",
-                fontSize: 12
-              }
-            },
-            `风险：${handoff.risk_level || "未标注"} · ${
-              sourcesChanged ? "来源已变化，需重新整合" : ready ? "可载入" : "待确认"
-            }`
-          ),
+          React.Fragment,
+          null,
           h(
             "section",
-            { style: { display: "grid", gap: 6 } },
-            h("strong", { style: { fontSize: 13 } }, "目标"),
+            {
+              "aria-label": "结构化需求总结",
+              style: {
+                background: "color-mix(in srgb, var(--dsw-alias-brand-primary, #35d39a) 7%, var(--dsw-alias-bg-layer-2))",
+                border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                borderRadius: 11,
+                display: "grid",
+                gap: 12,
+                padding: 12
+              }
+            },
+            h("h3", { style: { fontSize: 16, lineHeight: 1.35, margin: 0 } }, handoff.title),
             h(
-              "p",
-              {
-                style: {
-                  color: "var(--dsw-alias-text-secondary)",
-                  lineHeight: 1.6,
-                  margin: 0
-                }
-              },
-              handoff.objective
-            )
-          ),
-          h(
-            "section",
-            { style: { display: "grid", gap: 6 } },
-            h("strong", { style: { fontSize: 13 } }, "背景"),
+              "div",
+              { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 12 } },
+              `风险等级：${handoff.risk_level || "未标注"} · ${
+                sourcesChanged ? "来源待重新整合" : ready ? "可交接" : "待确认"
+              }`
+            ),
             h(
-              "p",
-              {
-                style: {
-                  color: "var(--dsw-alias-text-secondary)",
-                  lineHeight: 1.6,
-                  margin: 0
-                }
-              },
-              handoff.context
-            )
+              "section",
+              { style: { display: "grid", gap: 5 } },
+              h("strong", { style: { color: "var(--dsw-alias-brand-primary, #35d39a)", fontSize: 12 } }, "目标"),
+              h(
+                "p",
+                { style: { color: "var(--dsw-alias-text-secondary)", lineHeight: 1.55, margin: 0 } },
+                handoff.objective
+              )
+            ),
+            h(SummarySection, { label: "已确认决策", values: handoff.decisions }),
+            h(SummarySection, { label: "验收标准", values: handoff.acceptance_criteria }),
+            h(SummarySection, { label: "约束", values: handoff.constraints })
           ),
-          h(SummarySection, { label: "已确认决策", values: handoff.decisions }),
-          h(SummarySection, {
-            label: "实施建议",
-            values: handoff.implementation_plan
-          }),
-          h(SummarySection, {
-            label: "验收标准",
-            values: handoff.acceptance_criteria
-          }),
-          h(SummarySection, {
-            label: "验证方式",
-            values: handoff.verification_steps
-          }),
-          h(SummarySection, { label: "约束", values: handoff.constraints }),
-          h(SummarySection, { label: "非目标", values: handoff.non_goals }),
-          h(SummarySection, {
-            label: "需要本地核查",
-            values: handoff.local_context_needed
-          }),
-          h(SummarySection, {
-            label: "未解决问题",
-            values: handoff.open_questions
-          }),
           questions.length > 0 &&
             h(
               "section",
@@ -527,17 +558,11 @@ ${listLines(handoff.open_questions)}`;
                   padding: 12
                 }
               },
-              h("strong", null, "补充澄清"),
+              h("strong", null, "需求澄清 · 还有几项需要确认"),
               h(
-                "div",
-                {
-                  style: {
-                    color: "var(--dsw-alias-text-secondary)",
-                    fontSize: 12,
-                    lineHeight: 1.5
-                  }
-                },
-                "可以逐条在这里回答，或复制问题回到左侧 DeepSeek 继续讨论后重新抓取完整对话。"
+                "p",
+                { style: { color: "var(--dsw-alias-text-secondary)", fontSize: 12, lineHeight: 1.5, margin: 0 } },
+                "回到 DeepSeek 继续聊并重新抓取，或者直接在这里逐条回答。"
               ),
               ...questions.map((question, index) =>
                 h(
@@ -547,25 +572,15 @@ ${listLines(handoff.open_questions)}`;
                   h("textarea", {
                     rows: 3,
                     value: answers[index] || "",
-                    placeholder: "填写你的决定…",
-                    style: {
-                      ...textAreaStyle,
-                      background: "var(--dsw-alias-bg-base)",
-                      padding: 8
-                    },
+                    placeholder: "输入你的决定、偏好或补充背景…",
+                    style: textAreaStyle,
                     onChange: (event) => onAnswer(index, event.target.value)
                   })
                 )
               ),
               h(
                 "div",
-                {
-                  style: {
-                    display: "grid",
-                    gap: 8,
-                    gridTemplateColumns: "1fr 1fr"
-                  }
-                },
+                { style: { display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" } },
                 h(
                   Button,
                   {
@@ -577,13 +592,13 @@ ${listLines(handoff.open_questions)}`;
                         .join("\n")}`;
                       try {
                         await navigator.clipboard.writeText(text);
-                        setMessage("待确认问题已复制。可粘贴到左侧 DeepSeek 继续讨论。");
+                        setMessage("待确认问题已复制。");
                       } catch {
-                        setMessage("浏览器未允许写入剪贴板，请手动复制问题。");
+                        setMessage("浏览器未允许写入剪贴板。");
                       }
                     }
                   },
-                  "复制问题到 DeepSeek"
+                  "复制问题"
                 ),
                 h(
                   Button,
@@ -598,146 +613,56 @@ ${listLines(handoff.open_questions)}`;
                 h(
                   Button,
                   {
-                    disabled:
-                      Boolean(busy) ||
-                      questions.some((_, index) => !answers[index]?.trim()),
+                    disabled: Boolean(busy) || questions.some((_, index) => !answers[index]?.trim()),
                     icon: h(IconEnhanceOutline16),
                     variant: "primary",
                     onClick: onClarify
                   },
-                  busy === "clarify" ? "重新整理中…" : "提交答案并重新整理"
+                  busy === "clarify" ? "继续整理中…" : "提交回答并继续整理"
                 )
               )
             ),
           ready &&
             h(
-              Button,
+              "section",
               {
-                disabled: Boolean(busy),
-                icon: h(IconEnhanceOutline16),
-                variant: "outline",
-                onClick: onReview
+                style: {
+                  alignItems: "center",
+                  background: "var(--dsw-alias-bg-layer-2)",
+                  border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                  borderRadius: 10,
+                  display: "grid",
+                  gap: 9,
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  padding: 12
+                }
               },
-              busy === "review"
-                ? "三角色评审中…"
-                : "三角色评审并增强（2 次模型调用）"
-            ),
-          ready &&
-            h(
-              "details",
-              null,
-              h("summary", { style: { cursor: "pointer", fontSize: 13 } }, "继续修订这份需求"),
               h(
                 "div",
-                { style: { display: "grid", gap: 8, marginTop: 9 } },
-                h("textarea", {
-                  rows: 4,
-                  value: revisionInstruction,
-                  placeholder: "例如：保留现有范围，但把离线恢复改成非目标。",
-                  style: textAreaStyle,
-                  onChange: (event) => setRevisionInstruction(event.target.value)
-                }),
+                null,
+                h("strong", { style: { fontSize: 13 } }, "需求评审室"),
                 h(
-                  Button,
-                  {
-                    disabled: Boolean(busy) || !revisionInstruction.trim(),
-                    icon: h(IconEditOutline16),
-                    variant: "outline",
-                    onClick: () => onRevise(revisionInstruction)
-                  },
-                  busy === "revision" ? "修订中…" : "按说明生成新版本"
+                  "p",
+                  { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, lineHeight: 1.45, margin: "4px 0 0" } },
+                  "从产品、架构和交付角度自动复核当前需求。"
                 )
+              ),
+              h(
+                Button,
+                { disabled: Boolean(busy), icon: h(IconEnhanceOutline16), variant: "outline", onClick: onReview },
+                busy === "review" ? "评审中…" : "打开评审室"
               )
             ),
           reviewResult &&
             h(
               "section",
-              {
-                "aria-label": "SpecsRelay 三角色评审结果",
-                style: {
-                  background: "var(--dsw-alias-bg-layer-2)",
-                  borderRadius: 10,
-                  display: "grid",
-                  gap: 9,
-                  padding: 12
-                }
-              },
+              { style: { background: "var(--dsw-alias-bg-layer-2)", borderRadius: 10, display: "grid", gap: 9, padding: 12 } },
               h("strong", null, "三角色评审结果"),
-              h(
-                "p",
-                {
-                  style: {
-                    color: "var(--dsw-alias-text-secondary)",
-                    fontSize: 12,
-                    lineHeight: 1.55,
-                    margin: 0
-                  }
-                },
-                reviewResult.review.summary
-              ),
+              h("p", { style: { color: "var(--dsw-alias-text-secondary)", fontSize: 12, lineHeight: 1.55, margin: 0 } }, reviewResult.review.summary),
               h(SummarySection, { label: "遗漏", values: reviewResult.review.gaps }),
-              h(SummarySection, {
-                label: "冲突",
-                values: reviewResult.review.conflicts
-              }),
-              h(SummarySection, {
-                label: "改进建议",
-                values: reviewResult.review.recommendations
-              }),
-              h(
-                Button,
-                {
-                  icon: h(IconCheckOutline16),
-                  variant: "primary",
-                  onClick: onApplyReview
-                },
-                "采用增强后的需求"
-              )
-            ),
-          ready &&
-            h(
-              "section",
-              { style: { display: "grid", gap: 8 } },
-              h("strong", { style: { fontSize: 13 } }, "载入前预览"),
-              h("textarea", {
-                readOnly: true,
-                rows: 10,
-                value: prompt,
-                style: {
-                  ...textAreaStyle,
-                  color: "var(--dsw-alias-label-secondary)",
-                  fontSize: 12,
-                  lineHeight: 1.5
-                }
-              }),
-              h(
-                "label",
-                {
-                  style: {
-                    alignItems: "flex-start",
-                    display: "flex",
-                    fontSize: 12,
-                    gap: 7,
-                    lineHeight: 1.5
-                  }
-                },
-                h("input", {
-                  type: "checkbox",
-                  checked: confirmed,
-                  onChange: (event) => setConfirmed(event.target.checked)
-                }),
-                "我已检查内容；只载入 DSH 输入草稿，不自动发送。"
-              ),
-              h(
-                Button,
-                {
-                  disabled: !confirmed,
-                  icon: h(IconSendOutline14),
-                  variant: "primary",
-                  onClick: load
-                },
-                "载入当前 DSH 草稿"
-              )
+              h(SummarySection, { label: "冲突", values: reviewResult.review.conflicts }),
+              h(SummarySection, { label: "改进建议", values: reviewResult.review.recommendations }),
+              h(Button, { icon: h(IconCheckOutline16), variant: "primary", onClick: onApplyReview }, "采用增强后的需求")
             ),
           message && h(Toast, { text: message, onDone: () => setMessage("") })
         );
@@ -756,7 +681,7 @@ ${listLines(handoff.open_questions)}`;
                 padding: 16
               }
             },
-            "尚未抓取当前 DeepSeek 对话。点击“获取交接需求”，SpecsRelay 会自动抓取完整多轮对话并使用 DSH Skill 整理。"
+            "还没有当前来源。点击“添加当前对话为来源”后，SpecsRelay 会先在本地保存完整多轮对话；只有你点击整合时才调用 DSH 模型。"
           );
         }
         return h(
@@ -781,54 +706,299 @@ ${listLines(handoff.open_questions)}`;
               }
             },
             h(
-                "div",
-                {
-                  style: {
-                    alignItems: "center",
-                    display: "flex",
-                    gap: 8,
-                    justifyContent: "space-between"
-                  }
-                },
-                h("strong", { style: { fontSize: 13 } }, source.title),
-                h(Pill, { active: true }, "唯一来源")
-              ),
+              "div",
+              { style: { alignItems: "flex-start", display: "flex", gap: 8, justifyContent: "space-between" } },
               h(
                 "div",
-                { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11 } },
-                `${source.transcript.length.toLocaleString()} 字符 · ${relativeTime(
-                  source.updated_at
-                )}`
+                { style: { display: "grid", gap: 3, minWidth: 0 } },
+                h("span", { style: { color: "var(--dsw-alias-brand-primary, #35d39a)", fontSize: 11, fontWeight: 700 } }, source.provider),
+                h("strong", { style: { fontSize: 12, lineHeight: 1.4 } }, source.title)
               ),
+              h(Pill, { active: true }, "主要来源")
+            ),
+            h(
+              "div",
+              { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 10 } },
+              `${source.message_count > 0 ? `${source.message_count} 条消息 · ` : ""}更新于 ${relativeTime(source.updated_at)}`
+            ),
+            h(
+              Button,
+              { icon: h(IconTrashOutline16), size: "sm", variant: "ghost", onClick: onRemove },
+              "移除"
+            )
+          )
+        );
+      }
+
+      function DshTargetStep({ projectPath }) {
+        return h(
+          WorkflowStep,
+          {
+            number: 2,
+            title: "选择目标 DSH Agent",
+            description: "当前 DSH 版只交接给正在使用的 DeepSeek Harness 会话。"
+          },
+          h(
+            "section",
+            { style: { display: "grid", gap: 8 } },
+            h("strong", { style: { fontSize: 12 } }, "目标 Coding Agent"),
+            h(
+              "div",
+              {
+                style: {
+                  alignItems: "center",
+                  background: "var(--dsw-alias-bg-layer-2)",
+                  border: "1px solid var(--dsw-alias-border-subtle)",
+                  borderRadius: 9,
+                  display: "flex",
+                  gap: 8,
+                  minHeight: 38,
+                  padding: "0 10px"
+                }
+              },
+              h(StateDot, { state: "done" }),
+              h("span", { style: { fontSize: 13 } }, "当前 DeepSeek Harness 会话"),
+              h(Pill, { active: true, style: { marginLeft: "auto" } }, "固定目标")
+            ),
+            h(
+              "p",
+              { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, lineHeight: 1.45, margin: 0 } },
+              "需求会载入当前会话的输入草稿，由你最后检查并发送，不会自动启动 Agent。"
+            )
+          ),
+          h(
+            "section",
+            { style: { display: "grid", gap: 7 } },
+            h("strong", { style: { fontSize: 12 } }, "项目目录"),
+            h(
+              "code",
+              {
+                title: projectPath,
+                style: {
+                  background: "var(--dsw-alias-bg-layer-2)",
+                  border: "1px solid var(--dsw-alias-border-subtle)",
+                  borderRadius: 9,
+                  color: projectPath
+                    ? "var(--dsw-alias-text-secondary)"
+                    : "var(--dsw-alias-state-warning-primary)",
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  overflowWrap: "anywhere",
+                  padding: 10
+                }
+              },
+              projectPath || "当前 DSH 会话尚未关联项目"
+            )
+          )
+        );
+      }
+
+      function DeliveryStep({
+        alreadyLoaded,
+        busy,
+        handoff,
+        onLoad,
+        projectPath,
+        sourcesChanged
+      }) {
+        const [confirmed, setConfirmed] = useState(false);
+        const [message, setMessage] = useState("");
+        const prompt = handoff ? formatHandoffPrompt(handoff) : "";
+        const questions = Array.isArray(handoff?.open_questions)
+          ? handoff.open_questions
+          : [];
+        const ready = Boolean(
+          projectPath &&
+            handoff?.ready_for_execution === true &&
+            questions.length === 0 &&
+            !sourcesChanged
+        );
+        useEffect(() => setConfirmed(false), [projectPath, prompt]);
+        const load = () => {
+          const result = onLoad(prompt);
+          setMessage(
+            result.ok
+              ? "已载入当前 DSH 草稿；这一版已保存为冻结快照。"
+              : result.message
+          );
+          if (result.ok) setConfirmed(false);
+        };
+        return h(
+          WorkflowStep,
+          {
+            number: 3,
+            title: "检查并载入",
+            description: "下面的完整指令会载入当前 DSH 会话草稿。"
+          },
+          h("textarea", {
+            readOnly: true,
+            rows: 12,
+            value: prompt,
+            placeholder: "完成需求整理并关联 DSH 项目后，这里会显示完整提示词。",
+            style: {
+              ...textAreaStyle,
+              color: "var(--dsw-alias-label-secondary)",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 11,
+              lineHeight: 1.5,
+              minHeight: 220
+            }
+          }),
+          alreadyLoaded &&
+            h(
+              "p",
+              { style: { color: "var(--dsw-alias-brand-primary, #35d39a)", fontSize: 11, lineHeight: 1.45, margin: 0 } },
+              "当前版本已经载入过。需要重开时请使用下方冻结快照；需要改需求时请基于快照继续修改。"
+            ),
+          h(
+            "label",
+            { style: { alignItems: "flex-start", display: "flex", fontSize: 12, gap: 7, lineHeight: 1.5 } },
+            h("input", {
+              type: "checkbox",
+              checked: confirmed,
+              disabled: !ready || Boolean(busy) || alreadyLoaded,
+              onChange: (event) => setConfirmed(event.target.checked)
+            }),
+            "我已核对当前 DSH 会话、项目目录和草稿提示词。"
+          ),
+          h(
+            Button,
+            {
+              disabled: !ready || !confirmed || Boolean(busy) || alreadyLoaded,
+              icon: h(IconSendOutline14),
+              variant: "primary",
+              onClick: load
+            },
+            alreadyLoaded ? "当前版本已载入" : "载入当前版本到 DSH 草稿"
+          ),
+          message && h(Toast, { text: message, onDone: () => setMessage("") })
+        );
+      }
+
+      function ExecutionSnapshotPanel({
+        busy,
+        history,
+        onReload,
+        onRevise
+      }) {
+        const [selectedId, setSelectedId] = useState(history[0]?.id || "");
+        const [revisionOpen, setRevisionOpen] = useState(false);
+        const [revisionInstruction, setRevisionInstruction] = useState("");
+        const [message, setMessage] = useState("");
+        useEffect(() => {
+          if (!history.some((item) => item.id === selectedId)) {
+            setSelectedId(history[0]?.id || "");
+          }
+        }, [history, selectedId]);
+        if (history.length === 0) return null;
+        const snapshot =
+          history.find((item) => item.id === selectedId) || history[0];
+        return h(
+          "section",
+          {
+            "aria-label": "执行快照",
+            style: {
+              ...stepCardStyle,
+              borderColor: "var(--dsw-alias-brand-primary, #35d39a)"
+            }
+          },
+          h(
+            "header",
+            { style: { alignItems: "flex-start", display: "flex", gap: 8, justifyContent: "space-between" } },
+            h(
+              "div",
+              null,
+              h("div", { style: { color: "var(--dsw-alias-brand-primary, #35d39a)", fontSize: 11, fontWeight: 700 } }, "执行快照"),
+              h("h2", { style: { fontSize: 16, lineHeight: 1.35, margin: "3px 0 0" } }, snapshot.handoff.title)
+            ),
+            h(Pill, { active: true }, "已载入")
+          ),
+          h(
+            "p",
+            { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, lineHeight: 1.45, margin: 0 } },
+            "已载入 DSH 的版本会被冻结；之后继续修改不会改变这一版。"
+          ),
+          h("strong", { style: { fontSize: 12 } }, "执行版本"),
+          h(
+            "select",
+            {
+              value: snapshot.id,
+              style: { ...textAreaStyle, minHeight: 38, padding: "0 9px" },
+              onChange: (event) => setSelectedId(event.target.value)
+            },
+            ...history.map((item) =>
               h(
-                "pre",
-                {
-                  style: {
-                    color: "var(--dsw-alias-text-tertiary)",
-                    fontFamily: "inherit",
-                    fontSize: 11,
-                    lineHeight: 1.45,
-                    margin: 0,
-                    maxHeight: 86,
-                    overflow: "auto",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word"
-                  }
-                },
-                source.transcript.slice(0, 360),
-                source.transcript.length > 360 ? "\n…" : ""
-              ),
+                "option",
+                { key: item.id, value: item.id },
+                `${relativeTime(item.createdAt)} · ${item.handoff.title}`
+              )
+            )
+          ),
+          h(
+            "div",
+            { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, overflowWrap: "anywhere" } },
+            `${relativeTime(snapshot.createdAt)} · DSH · ${snapshot.projectPath}`
+          ),
+          h(
+            "section",
+            {
+              style: {
+                background: "color-mix(in srgb, var(--dsw-alias-brand-primary, #35d39a) 8%, var(--dsw-alias-bg-layer-2))",
+                border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                borderRadius: 10,
+                display: "grid",
+                gap: 9,
+                padding: 10
+              }
+            },
+            h("p", { style: { color: "var(--dsw-alias-text-secondary)", fontSize: 11, lineHeight: 1.5, margin: 0 } }, "这份冻结快照可以重新载入为当前 DSH 草稿。"),
+            h(
+              Button,
+              {
+                disabled: Boolean(busy),
+                icon: h(IconRefreshOutline16),
+                variant: "primary",
+                onClick: () => {
+                  const result = onReload(snapshot);
+                  setMessage(result.ok ? "已重新载入这份冻结快照。" : result.message);
+                }
+              },
+              "重新载入此快照"
+            )
+          ),
+          h(
+            Button,
+            { disabled: Boolean(busy), icon: h(IconEditOutline16), variant: "outline", onClick: () => setRevisionOpen((value) => !value) },
+            "基于此版本继续修改"
+          ),
+          revisionOpen &&
+            h(
+              "section",
+              { style: { display: "grid", gap: 8 } },
+              h("textarea", {
+                rows: 5,
+                value: revisionInstruction,
+                maxLength: 12000,
+                placeholder: "例如：增加 iPad 横屏适配，但保留当前 DSH 范围。",
+                style: textAreaStyle,
+                onChange: (event) => setRevisionInstruction(event.target.value)
+              }),
               h(
                 Button,
                 {
-                  icon: h(IconTrashOutline16),
-                  size: "sm",
-                  variant: "ghost",
-                  onClick: onRemove
+                  disabled: Boolean(busy) || !revisionInstruction.trim(),
+                  icon: h(IconEnhanceOutline16),
+                  variant: "primary",
+                  onClick: () => {
+                    onRevise(snapshot, revisionInstruction);
+                    setRevisionOpen(false);
+                    setRevisionInstruction("");
+                  }
                 },
-                "移除当前对话"
+                busy === "revision" ? "正在生成新版本…" : "生成新的需求版本"
               )
-          )
+            ),
+          message && h(Toast, { text: message, onDone: () => setMessage("") })
         );
       }
 
@@ -982,13 +1152,18 @@ ${listLines(handoff.open_questions)}`;
         const [sources, setSources] = useState([]);
         const [integratedFingerprint, setIntegratedFingerprint] = useState("");
         const [answers, setAnswers] = useState([]);
+        const [executionHistory, setExecutionHistory] = useState([]);
         const [history, setHistory] = useState([]);
         const [loadedStorageKey, setLoadedStorageKey] = useState("");
         const [manualOpen, setManualOpen] = useState(false);
         const [manualText, setManualText] = useState("");
         const [message, setMessage] = useState("");
         const [messageKind, setMessageKind] = useState("info");
-        const [panel, setPanel] = useState("home");
+        const [organizerRoute, setOrganizerRoute] = useState({
+          provider: "",
+          model: ""
+        });
+        const [panel, setPanel] = useState("workbench");
         const [reviewResult, setReviewResult] = useState(null);
         const [summary, setSummary] = useState(null);
         const captureFrameRef = useRef(null);
@@ -1014,14 +1189,26 @@ ${listLines(handoff.open_questions)}`;
         );
         const currentFingerprint = sourcesFingerprint(sources);
         const needsIntegration = Boolean(
-          currentFingerprint && currentFingerprint !== integratedFingerprint
+          (currentFingerprint || summary) &&
+            currentFingerprint !== integratedFingerprint
+        );
+        const currentPrompt = summary ? formatHandoffPrompt(summary) : "";
+        const currentExecutionFingerprint =
+          currentWorkspace && currentPrompt
+            ? stableHash(`${currentWorkspace}\n${currentPrompt}`)
+            : "";
+        const currentVersionLoaded = Boolean(
+          currentExecutionFingerprint &&
+            executionHistory.some(
+              (item) => item.fingerprint === currentExecutionFingerprint
+            )
         );
 
         useEffect(() => {
           const node = viewRef.current;
           if (!node || typeof ResizeObserver !== "function") return;
           const observer = new ResizeObserver(([entry]) => {
-            if (entry) setCompactLayout(entry.contentRect.width < 900);
+            if (entry) setCompactLayout(entry.contentRect.width < 1040);
           });
           observer.observe(node);
           return () => observer.disconnect();
@@ -1086,10 +1273,35 @@ ${listLines(handoff.open_questions)}`;
           setSummary(restored.handoff);
           setAnswers(restored.answers);
           setHistory(restored.history);
+          setExecutionHistory(restored.executionHistory);
+          setOrganizerRoute(restored.organizerRoute);
           setReviewResult(null);
-          setPanel(restored.handoff ? "summary" : "home");
+          setPanel("workbench");
           setLoadedStorageKey(storageKey);
         }, [storageKey]);
+
+        useEffect(() => {
+          if (!sessionId) return;
+          const controller = new AbortController();
+          fetch(
+            `${API}/organizer/status?sessionId=${encodeURIComponent(sessionId)}`,
+            { cache: "no-store", signal: controller.signal }
+          )
+            .then(async (response) => {
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+              setOrganizerRoute({
+                provider: String(data.provider || ""),
+                model: String(data.model || "")
+              });
+            })
+            .catch((error) => {
+              if (error?.name !== "AbortError") {
+                setOrganizerRoute({ provider: "", model: "" });
+              }
+            });
+          return () => controller.abort();
+        }, [sessionId]);
 
         useEffect(() => {
           if (loadedStorageKey !== storageKey) return;
@@ -1097,12 +1309,14 @@ ${listLines(handoff.open_questions)}`;
             localStorage.setItem(
               storageKey,
               JSON.stringify({
-                version: 1,
+                version: 2,
                 sources,
                 integratedFingerprint,
                 handoff: summary,
                 answers,
-                history
+                history,
+                executionHistory,
+                organizerRoute
               })
             );
           } catch {
@@ -1110,9 +1324,11 @@ ${listLines(handoff.open_questions)}`;
           }
         }, [
           answers,
+          executionHistory,
           history,
           integratedFingerprint,
           loadedStorageKey,
+          organizerRoute,
           sources,
           storageKey,
           summary
@@ -1121,7 +1337,7 @@ ${listLines(handoff.open_questions)}`;
         const acceptImportedText = (value, source) => {
           const nextSources = addRequirementSource(sources, value, source);
           setSources(nextSources);
-          setPanel("home");
+          setPanel("workbench");
           setManualOpen(false);
           setManualText("");
           setReviewResult(null);
@@ -1231,6 +1447,10 @@ ${listLines(handoff.open_questions)}`;
               throw new Error(data.error || `HTTP ${response.status}`);
             }
             setSummary(data.handoff);
+            setOrganizerRoute({
+              provider: String(data.provider || ""),
+              model: String(data.model || "")
+            });
             setAnswers(
               Array.isArray(data.handoff?.open_questions)
                 ? data.handoff.open_questions.map(() => "")
@@ -1238,7 +1458,7 @@ ${listLines(handoff.open_questions)}`;
             );
             setIntegratedFingerprint(fingerprint);
             setReviewResult(null);
-            setPanel("summary");
+            setPanel("workbench");
             setMessageKind("success");
             setMessage(
               data.requiresClarification
@@ -1256,7 +1476,7 @@ ${listLines(handoff.open_questions)}`;
         const organize = (kind, extra = {}) =>
           organizeSources(kind, sources, extra);
 
-        const captureAndOrganize = async () => {
+        const captureCurrentConversation = async () => {
           if (!captureBridgeReady || busy) return;
           setBusy("capture");
           setMessage("");
@@ -1266,15 +1486,14 @@ ${listLines(handoff.open_questions)}`;
             const capture = await fetchCapturedConversation(requestId);
             const nextSources = addCapturedRequirementSource(capture);
             setSources(nextSources);
-            setPanel("home");
+            setPanel("workbench");
             setManualOpen(false);
             setManualText("");
             setReviewResult(null);
             setMessageKind("success");
             setMessage(
-              `已自动抓取 ${capture.messageCount} 条 DeepSeek 消息，正在使用 DSH Skill 整理需求。`
+              `已添加 ${capture.messageCount} 条 DeepSeek 消息作为当前来源，尚未调用 DSH 模型。`
             );
-            await organizeSources("capture", nextSources);
           } catch (error) {
             setMessageKind("error");
             setMessage(error instanceof Error ? error.message : String(error));
@@ -1308,6 +1527,10 @@ ${listLines(handoff.open_questions)}`;
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            setOrganizerRoute({
+              provider: String(data.provider || ""),
+              model: String(data.model || "")
+            });
             setReviewResult(data);
             setMessageKind("success");
             setMessage(
@@ -1337,7 +1560,7 @@ ${listLines(handoff.open_questions)}`;
           setSummary(null);
           setAnswers([]);
           setReviewResult(null);
-          setPanel("home");
+          setPanel("workbench");
           setMessageKind("success");
           setMessage(
             archived
@@ -1366,7 +1589,7 @@ ${listLines(handoff.open_questions)}`;
           setSummary(selected.handoff || null);
           setAnswers(Array.isArray(selected.answers) ? selected.answers : []);
           setReviewResult(null);
-          setPanel(selected.handoff ? "summary" : "home");
+          setPanel("workbench");
           setMessageKind("success");
           setMessage("已恢复所选需求工作区。");
         };
@@ -1374,6 +1597,66 @@ ${listLines(handoff.open_questions)}`;
         const openInbox = () => {
           setPanel("inbox");
           void inbox.refresh();
+        };
+
+        const loadCurrentVersion = (prompt) => {
+          if (!summary) {
+            return { ok: false, message: "当前还没有可载入的结构化需求。" };
+          }
+          const result = loadDraft({
+            handoffId: `dsh-live-${Date.now()}`,
+            objective: summary.objective,
+            projectPath: currentWorkspace,
+            prompt,
+            receivedAt: new Date().toISOString(),
+            sourceProvider: "DeepSeek",
+            state: "received",
+            title: summary.title
+          });
+          if (result.ok) {
+            const snapshot = createExecutionSnapshot(
+              summary,
+              currentWorkspace,
+              prompt,
+              sources
+            );
+            setExecutionHistory((items) =>
+              normalizeExecutionHistory([
+                snapshot,
+                ...items.filter(
+                  (item) => item.fingerprint !== snapshot.fingerprint
+                )
+              ])
+            );
+          }
+          return result;
+        };
+
+        const reloadExecutionSnapshot = (snapshot) =>
+          loadDraft({
+            handoffId: `dsh-snapshot-${snapshot.id}`,
+            objective: snapshot.handoff.objective,
+            projectPath: snapshot.projectPath,
+            prompt: snapshot.prompt,
+            receivedAt: snapshot.createdAt,
+            sourceProvider: "DeepSeek",
+            state: "loaded",
+            title: snapshot.handoff.title
+          });
+
+        const reviseFromSnapshot = (snapshot, revisionInstruction) => {
+          const snapshotSources = snapshot.sources.length
+            ? snapshot.sources
+            : sources;
+          setSources(snapshotSources);
+          setSummary(snapshot.handoff);
+          setIntegratedFingerprint(sourcesFingerprint(snapshotSources));
+          setReviewResult(null);
+          setPanel("workbench");
+          void organizeSources("revision", snapshotSources, {
+            previousHandoff: snapshot.handoff,
+            revisionInstruction
+          });
         };
 
         return h(
@@ -1492,7 +1775,7 @@ ${listLines(handoff.open_questions)}`;
                 gap: 10,
                 gridTemplateColumns: compactLayout
                   ? "minmax(0, 1fr)"
-                  : "minmax(0, 1fr) minmax(340px, 400px)",
+                  : "minmax(0, 1fr) minmax(440px, 510px)",
                 minHeight: 0
               }
             },
@@ -1579,14 +1862,7 @@ ${listLines(handoff.open_questions)}`;
                 h(
                   "div",
                   { style: { display: "flex", gap: 6, marginLeft: "auto" } },
-                  h(
-                    Pill,
-                    {
-                      active: panel === "home",
-                      onClick: () => setPanel("home")
-                    },
-                    "需求分析"
-                  ),
+                  h(Pill, { active: true }, "DSH 模型"),
                   h(
                     Button,
                     {
@@ -1596,6 +1872,16 @@ ${listLines(handoff.open_questions)}`;
                       onClick: newRequirement
                     },
                     "新需求"
+                  ),
+                  h(
+                    Button,
+                    {
+                      icon: h(IconArchiveOutline20, { size: 16 }),
+                      size: "sm",
+                      variant: "ghost",
+                      onClick: openInbox
+                    },
+                    "记录"
                   )
                 )
               ),
@@ -1610,175 +1896,205 @@ ${listLines(handoff.open_questions)}`;
                     padding: 14
                   }
                 },
-                panel === "summary" && summary
-                  ? h(HandoffSummaryPanel, {
-                      answers,
-                      busy,
-                      handoff: summary,
+                panel === "inbox"
+                  ? h(InboxPanel, {
+                      items: sorted,
                       loadDraft,
-                      onAnswer: (index, value) =>
-                        setAnswers((items) => {
-                          const next = [...items];
-                          next[index] = value;
-                          return next;
-                        }),
-                      onApplyReview: () => {
-                        const improved = reviewResult?.improvedHandoff;
-                        if (!improved) return;
-                        setSummary(improved);
-                        setAnswers(
-                          Array.isArray(improved.open_questions)
-                            ? improved.open_questions.map(() => "")
-                            : []
-                        );
-                        setReviewResult(null);
-                        setMessageKind("success");
-                        setMessage("已采用增强后的结构化需求。");
-                      },
-                      onBack: () => setPanel("home"),
-                      onClarify: () => void clarify(),
-                      onRecapture: captureBridgeReady
-                        ? () => void captureAndOrganize()
-                        : null,
-                      onReview: () => void review(),
-                      onRevise: (instruction) =>
-                        void organize("revision", {
-                          previousHandoff: summary,
-                          revisionInstruction: instruction
-                        }),
-                      projectPath: currentWorkspace,
-                      reviewResult,
-                      sourcesChanged: needsIntegration
+                      loading: state.loading,
+                      onBack: () => setPanel("workbench"),
+                      onRefresh: () => void inbox.refresh()
                     })
-                  : panel === "inbox"
-                    ? h(InboxPanel, {
-                        items: sorted,
-                        loadDraft,
-                        loading: state.loading,
-                        onBack: () => setPanel("home"),
-                        onRefresh: () => void inbox.refresh()
-                      })
-                    : h(
-                        React.Fragment,
-                        null,
+                  : h(
+                      React.Fragment,
+                      null,
+                      h(
+                        "div",
+                        {
+                          style: {
+                            alignItems: "center",
+                            background: "var(--dsw-alias-bg-layer-2)",
+                            border: "1px solid var(--dsw-alias-border-subtle)",
+                            borderRadius: 9,
+                            display: "flex",
+                            gap: 8,
+                            minHeight: 38,
+                            padding: "0 10px"
+                          }
+                        },
+                        h(StateDot, { state: captureBridgeReady ? "done" : "warning" }),
                         h(
-                          "p",
+                          "span",
+                          { style: { fontSize: 12 } },
+                          captureBridgeReady
+                            ? "DeepSeek 网页捕获已连接"
+                            : "正在等待 DeepSeek 网页捕获组件"
+                        )
+                      ),
+                      h(
+                        "div",
+                        {
+                          style: {
+                            alignItems: "center",
+                            background: "color-mix(in srgb, var(--dsw-alias-brand-primary, #35d39a) 8%, var(--dsw-alias-bg-layer-2))",
+                            border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                            borderRadius: 9,
+                            display: "flex",
+                            gap: 8,
+                            minHeight: 42,
+                            padding: "0 10px"
+                          }
+                        },
+                        h(StateDot, { state: organizerRoute.model ? "done" : "warning" }),
+                        h(
+                          "strong",
+                          { style: { fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } },
+                          organizerRoute.model
+                            ? `需求模型：DeepSeek · ${organizerRoute.model}`
+                            : "正在读取 DSH 当前需求模型"
+                        ),
+                        h(Pill, { active: true, style: { marginLeft: "auto" } }, "DSH 提供")
+                      ),
+                      h(
+                        WorkflowStep,
+                        {
+                          number: 1,
+                          title: "建立并强化当前需求",
+                          description: "把当前 DeepSeek 网页对话保存为需求来源，再由你决定何时调用 DSH 模型和 Skill 整合。"
+                        },
+                        h(
+                          "section",
                           {
                             style: {
-                              color: "var(--dsw-alias-text-secondary)",
-                              fontSize: 13,
-                              lineHeight: 1.6,
-                              margin: 0
+                              background: "color-mix(in srgb, var(--dsw-alias-brand-primary, #35d39a) 5%, var(--dsw-alias-bg-layer-2))",
+                              border: "1px solid var(--dsw-alias-brand-primary, #35d39a)",
+                              borderRadius: 11,
+                              display: "grid",
+                              gap: 10,
+                              padding: 12
                             }
                           },
-                          "唯一来源是左侧当前 DeepSeek 网页对话。点击“获取交接需求”后，SpecsRelay 会自动抓取完整多轮对话，并调用 DSH 已配置的 DeepSeek 模型和内置需求分析 Skill。"
+                          h(
+                            "header",
+                            { style: { alignItems: "flex-start", display: "flex", gap: 8, justifyContent: "space-between" } },
+                            h(
+                              "div",
+                              { style: { minWidth: 0 } },
+                              h("div", { style: { color: "var(--dsw-alias-brand-primary, #35d39a)", fontSize: 10, fontWeight: 700 } }, "当前需求工作区"),
+                              h(
+                                "h3",
+                                { style: { fontSize: 15, lineHeight: 1.35, margin: "3px 0 0" } },
+                                summary?.title || sources[0]?.title || "还没有当前需求"
+                              ),
+                              h(
+                                "div",
+                                { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 11, marginTop: 3 } },
+                                sources.length
+                                  ? `${sources.length}/1 个来源 · ${needsIntegration ? "待整合" : "已整合"}`
+                                  : "抓取当前 DeepSeek 对话即可创建"
+                              )
+                            ),
+                            (sources.length > 0 || summary) &&
+                              h(Button, { icon: h(IconNewChatOutline16), size: "sm", variant: "ghost", onClick: newRequirement }, "新建需求")
+                          ),
+                          h(DeepSeekConversationPanel, {
+                            source: sources[0] || null,
+                            onRemove: () => {
+                              setSources([]);
+                              setReviewResult(null);
+                              setMessageKind("success");
+                              setMessage("当前 DeepSeek 对话已移除，需求需要重新建立。 ");
+                            }
+                          }),
+                          sources.length > 0 &&
+                            h(
+                              "div",
+                              { style: { alignItems: "center", display: "grid", gap: 8, gridTemplateColumns: "minmax(0, 1fr) auto" } },
+                              h(
+                                Button,
+                                {
+                                  disabled: Boolean(busy) || !needsIntegration,
+                                  icon: h(IconSkillOutline16),
+                                  variant: "primary",
+                                  onClick: () => void organize("integrate")
+                                },
+                                busy === "integrate" ? "正在整合来源…" : "整合并强化来源"
+                              ),
+                              h("span", { style: { color: "var(--dsw-alias-text-tertiary)", fontSize: 10 } }, "最多 1 个来源")
+                            )
                         ),
                         h(
                           "div",
                           {
                             style: {
                               alignItems: "center",
+                              background: "var(--dsw-alias-bg-layer-2)",
+                              border: "1px solid var(--dsw-alias-border-subtle)",
+                              borderRadius: 9,
                               display: "flex",
-                              gap: 7,
-                              fontSize: 12
+                              gap: 8,
+                              minHeight: 42,
+                              padding: "0 10px"
                             }
                           },
-                          h(StateDot, {
-                            state: captureBridgeReady ? "done" : "warning"
-                          }),
-                          captureBridgeReady
-                            ? "DeepSeek 自动抓取已连接"
-                            : "正在等待 DeepSeek 自动抓取组件"
+                          h(StateDot, { state: captureBridgeReady ? "done" : "warning" }),
+                          h(
+                            "span",
+                            { style: { color: "var(--dsw-alias-text-secondary)", flex: 1, fontSize: 11, lineHeight: 1.4 } },
+                            captureBridgeReady
+                              ? "已识别当前 DeepSeek 网页，可以自动抓取完整多轮对话。"
+                              : "当前网页暂时无法自动抓取，请刷新网页或使用备用粘贴。"
+                          ),
+                          !captureBridgeReady &&
+                            h(Button, { size: "sm", variant: "ghost", onClick: probeCaptureBridge }, "重试")
                         ),
                         h(
                           Button,
                           {
                             disabled: !captureBridgeReady || Boolean(busy),
-                            icon: h(IconSkillOutline16),
+                            icon: h(IconEnhanceOutline16),
                             variant: "primary",
-                            onClick: () => void captureAndOrganize()
+                            onClick: () => void captureCurrentConversation()
                           },
                           busy === "capture"
-                            ? "正在抓取并整理需求…"
+                            ? "正在抓取当前对话…"
                             : sources.length
-                              ? "重新获取交接需求"
-                              : "获取交接需求"
+                              ? "更新当前对话来源"
+                              : "添加当前对话为来源"
                         ),
-                        h(
-                          "details",
-                          {
-                            style: {
-                              borderTop: "1px solid var(--dsw-alias-border-subtle)",
-                              paddingTop: 8
-                            }
-                          },
-                          h(
-                            "summary",
-                            {
-                              style: {
-                                color: "var(--dsw-alias-text-tertiary)",
-                                cursor: "pointer",
-                                fontSize: 12
-                              }
-                            },
-                            "高级回退：从剪贴板或手动粘贴"
-                          ),
+                        (sources.length > 0 || summary) &&
                           h(
                             "div",
                             {
                               style: {
-                                display: "grid",
+                                alignItems: "center",
+                                border: "1px dashed var(--dsw-alias-border-subtle)",
+                                borderRadius: 9,
+                                display: "flex",
                                 gap: 8,
-                                gridTemplateColumns: "1fr 1fr",
-                                marginTop: 8
+                                minHeight: 42,
+                                padding: "0 10px"
                               }
                             },
-                          h(
-                            Button,
-                            {
-                              disabled: Boolean(busy),
-                              icon: h(IconCopyOutline16),
-                              variant: "outline",
-                              onClick: () => void importClipboard()
-                            },
-                            busy === "clipboard"
-                              ? "读取中…"
-                              : sources.length
-                                ? "从剪贴板替换当前对话"
-                                : "从剪贴板导入当前对话"
+                            h(StateDot, { state: "done" }),
+                            h("span", { style: { color: "var(--dsw-alias-text-secondary)", flex: 1, fontSize: 11 } }, "已自动保存当前工作草稿。"),
+                            history.length > 0 &&
+                              h(Button, { size: "sm", variant: "ghost", onClick: () => restoreHistory(0) }, "恢复上一版")
                           ),
+                        h(
+                          "details",
+                          { style: { borderTop: "1px solid var(--dsw-alias-border-subtle)", paddingTop: 8 } },
+                          h("summary", { style: { color: "var(--dsw-alias-text-tertiary)", cursor: "pointer", fontSize: 11 } }, "备用：粘贴原始对话"),
                           h(
-                            Button,
-                            {
-                              disabled: Boolean(busy),
-                              icon: h(IconEditOutline16),
-                              variant: "outline",
-                              onClick: () => setManualOpen((value) => !value)
-                            },
-                            manualOpen ? "收起粘贴框" : "手动粘贴"
-                          )
+                            "div",
+                            { style: { display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr", marginTop: 8 } },
+                            h(Button, { disabled: Boolean(busy), icon: h(IconCopyOutline16), variant: "outline", onClick: () => void importClipboard() }, busy === "clipboard" ? "读取中…" : "从剪贴板导入"),
+                            h(Button, { disabled: Boolean(busy), icon: h(IconEditOutline16), variant: "outline", onClick: () => setManualOpen((value) => !value) }, manualOpen ? "收起粘贴框" : "手动粘贴")
                           ),
                           manualOpen &&
                             h(
                               "section",
-                              {
-                                style: {
-                                  display: "grid",
-                                  gap: 8,
-                                  marginTop: 8
-                                }
-                              },
-                              h("textarea", {
-                                value: manualText,
-                                placeholder: "把 DeepSeek 对话或分享内容粘贴到这里…",
-                                rows: 9,
-                                style: {
-                                  ...textAreaStyle,
-                                  lineHeight: 1.5,
-                                  minHeight: 180
-                                },
-                                onChange: (event) => setManualText(event.target.value)
-                              }),
+                              { style: { display: "grid", gap: 8, marginTop: 8 } },
+                              h("textarea", { value: manualText, placeholder: "把 DeepSeek 对话粘贴到这里…", rows: 9, style: { ...textAreaStyle, lineHeight: 1.5, minHeight: 180 }, onChange: (event) => setManualText(event.target.value) }),
                               h(
                                 Button,
                                 {
@@ -1789,95 +2105,57 @@ ${listLines(handoff.open_questions)}`;
                                       acceptImportedText(manualText, "manual");
                                     } catch (error) {
                                       setMessageKind("error");
-                                      setMessage(
-                                        error instanceof Error
-                                          ? error.message
-                                          : String(error)
-                                      );
+                                      setMessage(error instanceof Error ? error.message : String(error));
                                     }
                                   }
                                 },
-                                sources.length
-                                  ? "替换当前 DeepSeek 对话"
-                                  : "使用这份 DeepSeek 对话"
+                                sources.length ? "替换当前来源" : "添加为当前来源"
                               )
                             )
                         ),
-                        h(DeepSeekConversationPanel, {
-                          source: sources[0] || null,
-                          onRemove: () => {
-                            setSources([]);
-                            setReviewResult(null);
-                            setMessageKind("success");
-                            setMessage("当前 DeepSeek 对话已移除，尚未调用模型。");
-                          }
-                        }),
-                        sources.length > 0 &&
-                          h(
-                            "div",
-                            {
-                              style: {
-                                alignItems: "center",
-                                display: "flex",
-                                gap: 7,
-                                fontSize: 12
-                              }
+                        summary &&
+                          h(HandoffSummaryPanel, {
+                            answers,
+                            busy,
+                            handoff: summary,
+                            onAnswer: (index, value) =>
+                              setAnswers((items) => {
+                                const next = [...items];
+                                next[index] = value;
+                                return next;
+                              }),
+                            onApplyReview: () => {
+                              const improved = reviewResult?.improvedHandoff;
+                              if (!improved) return;
+                              setSummary(improved);
+                              setAnswers(Array.isArray(improved.open_questions) ? improved.open_questions.map(() => "") : []);
+                              setReviewResult(null);
+                              setMessageKind("success");
+                              setMessage("已采用增强后的结构化需求。");
                             },
-                            h(StateDot, { state: needsIntegration ? "warning" : "done" }),
-                            needsIntegration
-                              ? "当前 DeepSeek 对话 · 待 Skill 分析"
-                              : "当前 DeepSeek 对话 · 已完成 Skill 分析"
-                          ),
-                        h(
-                          Button,
-                          {
-                            disabled: sources.length === 0 || Boolean(busy),
-                            icon: h(IconSkillOutline16),
-                            variant: "primary",
-                            onClick: () => void organize("summary")
-                          },
-                          busy === "summary"
-                            ? "Skill 分析中…"
-                            : summary
-                              ? "重新使用 Skill 分析需求"
-                              : "使用 Skill 分析并整理需求"
-                        ),
-                        history.length > 0 &&
-                          h(
-                            "section",
-                            { style: { display: "grid", gap: 7 } },
-                            h("strong", { style: { fontSize: 13 } }, "本地恢复记录"),
-                            ...history.map((item, index) =>
-                              h(
-                                Button,
-                                {
-                                  key: `${item.savedAt || "history"}-${index}`,
-                                  size: "sm",
-                                  variant: "toolbar",
-                                  style: {
-                                    justifyContent: "flex-start",
-                                    textAlign: "left",
-                                    width: "100%",
-                                    whiteSpace: "normal"
-                                  },
-                                  onClick: () => restoreHistory(index)
-                                },
-                                `${item.handoff?.title || "未整合需求"} · ${relativeTime(
-                                  item.savedAt
-                                )}`
-                              )
-                            )
-                          ),
-                        h(
-                          Button,
-                          {
-                            icon: h(IconArchiveOutline20, { size: 16 }),
-                            variant: "ghost",
-                            onClick: openInbox
-                          },
-                          `交接记录${state.items.length ? ` ${state.items.length}` : ""}`
-                        )
+                            onClarify: () => void clarify(),
+                            onRecapture: captureBridgeReady ? () => void captureCurrentConversation() : null,
+                            onReview: () => void review(),
+                            reviewResult,
+                            sourcesChanged: needsIntegration
+                          })
                       ),
+                      h(DshTargetStep, { projectPath: currentWorkspace }),
+                      h(DeliveryStep, {
+                        alreadyLoaded: currentVersionLoaded,
+                        busy,
+                        handoff: summary,
+                        onLoad: loadCurrentVersion,
+                        projectPath: currentWorkspace,
+                        sourcesChanged: needsIntegration
+                      }),
+                      h(ExecutionSnapshotPanel, {
+                        busy,
+                        history: executionHistory,
+                        onReload: reloadExecutionSnapshot,
+                        onRevise: reviseFromSnapshot
+                      })
+                    ),
                 state.error && panel === "inbox" &&
                   h(
                     "div",
@@ -1908,7 +2186,7 @@ ${listLines(handoff.open_questions)}`;
                     padding: "9px 14px"
                   }
                 },
-                "当前 DeepSeek 对话、需求和最近 3 份恢复记录保存在此浏览器；点击“获取交接需求”会自动抓取并调用 DSH 已配置的 DeepSeek 模型。无需另填 API Key。"
+                "当前来源、需求草稿、最近 3 份恢复记录和冻结执行快照保存在此浏览器；只有点击“整合并强化来源”才调用 DSH 模型。无需另填 API Key。"
               )
             )
           ),
