@@ -21,14 +21,16 @@ export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.6.1";
+export const PLUGIN_VERSION = "0.7.0";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
+const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
 const MAX_ORGANIZER_BODY_BYTES = 1600000;
 export const MAX_IMPORTED_CONTEXT_CHARS = 400000;
 const MAX_PROMPT_CHARS = 160000;
 const MAX_PROJECT_PATH_CHARS = 4096;
 const MAX_INBOX_ITEMS = 20;
+const MAX_CAPTURE_ITEMS = 8;
 const ORGANIZER_MAX_OUTPUT_TOKENS = 8192;
 const ORGANIZER_TIMEOUT_MS = 180000;
 const DEFAULT_DEEPSEEK_PROVIDER = "deepseek-official";
@@ -39,6 +41,7 @@ const REQUIREMENT_SKILL_URL = new URL(
   import.meta.url
 );
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/;
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 
 const ORGANIZER_SYSTEM_PROMPT = `${HANDOFF_PROMPT}
 
@@ -208,6 +211,74 @@ export function validateIncomingDelivery(value) {
   };
 }
 
+export function validateIncomingCapture(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Capture delivery must be an object.");
+  }
+  if (value.protocolVersion !== PROTOCOL_VERSION) {
+    throw new Error(
+      `Unsupported capture protocol: ${String(value.protocolVersion)}.`
+    );
+  }
+  if (value.focus !== "deepseek") {
+    throw new Error("This plugin accepts DeepSeek captures only.");
+  }
+  if (value.source?.product !== "SpecsRelay") {
+    throw new Error("Capture source must be SpecsRelay.");
+  }
+  if (
+    typeof value.requestId !== "string" ||
+    !REQUEST_ID_PATTERN.test(value.requestId)
+  ) {
+    throw new Error("Capture request id is invalid.");
+  }
+  const conversation = value.conversation;
+  if (
+    !conversation ||
+    typeof conversation !== "object" ||
+    Array.isArray(conversation)
+  ) {
+    throw new Error("Captured DeepSeek conversation is required.");
+  }
+  const transcript = boundedString(
+    conversation.transcript,
+    "Captured transcript",
+    MAX_IMPORTED_CONTEXT_CHARS
+  );
+  const url = typeof conversation.url === "string" ? conversation.url.trim() : "";
+  if (url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error("Captured DeepSeek URL is invalid.");
+    }
+    if (parsed.protocol !== "https:" || parsed.hostname !== "chat.deepseek.com") {
+      throw new Error("Captured DeepSeek URL must use chat.deepseek.com.");
+    }
+  }
+  const messageCount = Number.isInteger(conversation.messageCount)
+    ? conversation.messageCount
+    : 0;
+  if (messageCount < 1 || messageCount > 2000) {
+    throw new Error("Captured DeepSeek message count is invalid.");
+  }
+  return {
+    requestId: value.requestId,
+    captureId: boundedString(conversation.captureId, "Capture id", 200),
+    capturedAt: boundedString(conversation.capturedAt, "Capture time", 80),
+    provider: "DeepSeek",
+    title: boundedString(conversation.title, "Conversation title", 500),
+    url,
+    messageCount,
+    transcript,
+    sourceVersion:
+      typeof value.source.version === "string"
+        ? value.source.version.slice(0, 40)
+        : ""
+  };
+}
+
 function createInbox() {
   const records = [];
   return {
@@ -251,6 +322,33 @@ function createInbox() {
   };
 }
 
+export function createCaptureInbox() {
+  const records = [];
+  return {
+    accept(value) {
+      const capture = validateIncomingCapture(value);
+      const record = {
+        ...capture,
+        state: "received",
+        receivedAt: new Date().toISOString()
+      };
+      const existing = records.findIndex(
+        (item) => item.requestId === record.requestId
+      );
+      if (existing !== -1) records.splice(existing, 1);
+      records.unshift(record);
+      records.splice(MAX_CAPTURE_ITEMS);
+      return structuredClone(record);
+    },
+    latest(requestId = "") {
+      const record = requestId
+        ? records.find((item) => item.requestId === requestId)
+        : records[0];
+      return record ? structuredClone(record) : null;
+    }
+  };
+}
+
 async function writeDescriptor(filePath, descriptor) {
   await mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
   const temporary = `${filePath}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
@@ -274,7 +372,11 @@ async function removeOwnedDescriptor(filePath, token) {
   }
 }
 
-export async function startIngressServer({ token, inbox }) {
+export async function startIngressServer({
+  token,
+  inbox,
+  captures = createCaptureInbox()
+}) {
   if (typeof token !== "string" || !TOKEN_PATTERN.test(token)) {
     throw new Error("Ingress token is invalid.");
   }
@@ -285,12 +387,27 @@ export async function startIngressServer({ token, inbox }) {
         return;
       }
       const pathname = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
-      if (req.method !== "POST" || pathname !== "/v1/handoffs") {
+      if (
+        req.method !== "POST" ||
+        (pathname !== "/v1/handoffs" && pathname !== "/v1/captures")
+      ) {
         jsonResponse(res, 404, { error: "Not found." });
         return;
       }
       if (req.headers.authorization !== `Bearer ${token}`) {
         jsonResponse(res, 401, { error: "Invalid bridge token." });
+        return;
+      }
+      if (pathname === "/v1/captures") {
+        const record = captures.accept(
+          await readJsonBody(req, MAX_CAPTURE_INGRESS_BODY_BYTES)
+        );
+        jsonResponse(res, 202, {
+          accepted: true,
+          requestId: record.requestId,
+          state: record.state,
+          receivedAt: record.receivedAt
+        });
         return;
       }
       const record = inbox.accept(await readJsonBody(req));
@@ -771,7 +888,7 @@ export async function reviewRequirement(ctx, request) {
   };
 }
 
-function registerBrowserRoutes(ctx, inbox) {
+function registerBrowserRoutes(ctx, inbox, captures) {
   const requireLoopback = (req, res) => {
     if (isLoopbackAddress(req.socket.remoteAddress)) {
       return true;
@@ -804,6 +921,27 @@ function registerBrowserRoutes(ctx, inbox) {
         return;
       }
       jsonResponse(res, 200, { item: inbox.latest() });
+    }
+  });
+  const disposeCapture = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/v1/captures/latest",
+    handler: (req, res) => {
+      if (!requireLoopback(req, res)) return;
+      if (req.method !== "GET") {
+        res.setHeader("allow", "GET");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      const requestId = new URL(
+        req.url ?? "/",
+        "http://127.0.0.1"
+      ).searchParams.get("requestId") ?? "";
+      if (requestId && !REQUEST_ID_PATTERN.test(requestId)) {
+        jsonResponse(res, 400, { error: "Capture request id is invalid." });
+        return;
+      }
+      jsonResponse(res, 200, { item: captures.latest(requestId) });
     }
   });
   const disposeReceipt = ctx.webServer.register({
@@ -878,6 +1016,7 @@ function registerBrowserRoutes(ctx, inbox) {
     disposeReview();
     disposeOrganizer();
     disposeReceipt();
+    disposeCapture();
     disposeLatest();
     disposeInbox();
   };
@@ -891,13 +1030,14 @@ export async function apply(ctx) {
   );
 
   const inbox = createInbox();
+  const captures = createCaptureInbox();
   ctx.effect(
-    () => registerBrowserRoutes(ctx, inbox),
+    () => registerBrowserRoutes(ctx, inbox, captures),
     "specsrelay-deepseek: WebUI routes"
   );
 
   const token = randomBytes(32).toString("hex");
-  const ingress = await startIngressServer({ token, inbox });
+  const ingress = await startIngressServer({ token, inbox, captures });
   ctx.effect(
     () => () => ingress.close(),
     "specsrelay-deepseek: loopback ingress"

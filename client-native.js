@@ -34,6 +34,13 @@
 
       const API = "/specsrelay/v1";
       const DEEPSEEK_URL = "https://chat.deepseek.com/";
+      const DEEPSEEK_ORIGIN = "https://chat.deepseek.com";
+      const CAPTURE_PROTOCOL_VERSION = 1;
+      const CAPTURE_PROBE_TYPE = "specsrelay.dsh.capture.probe";
+      const CAPTURE_READY_TYPE = "specsrelay.dsh.capture.ready";
+      const CAPTURE_REQUEST_TYPE = "specsrelay.dsh.capture.request";
+      const CAPTURE_RESULT_TYPE = "specsrelay.dsh.capture.result";
+      const CAPTURE_TIMEOUT_MS = 90000;
       const MAX_REQUIREMENT_SOURCE_CHARS = 500000;
       const MAX_WORKSPACE_HISTORY = 3;
       const WORKSPACE_STORAGE_PREFIX = "specsrelay.dsh.workspace.v1:";
@@ -199,13 +206,14 @@ ${listLines(handoff.open_questions)}`;
         for (const item of value) {
           const transcript = String(item?.transcript || "").trim();
           if (!transcript || transcript.length > MAX_REQUIREMENT_SOURCE_CHARS) continue;
-          const identity = `paste:${stableHash(transcript)}`;
+          const kind = item?.kind === "chatbot" ? "chatbot" : "paste";
+          const identity = `${kind}:${stableHash(transcript)}`;
           if (seen.has(identity)) continue;
           seen.add(identity);
           normalized.push({
             id: String(item?.id || `source_${stableHash(identity)}`).slice(0, 120),
             identity,
-            kind: "paste",
+            kind,
             provider: String(item?.provider || "DeepSeek").slice(0, 120),
             title: String(item?.title || "DeepSeek 对话").slice(0, 500),
             transcript,
@@ -240,6 +248,25 @@ ${listLines(handoff.open_questions)}`;
           updated_at: now
         };
         return normalizeSources([source]);
+      }
+
+      function addCapturedRequirementSource(capture) {
+        const transcript = normalizeImportedText(capture?.transcript);
+        const identity = `capture:${stableHash(transcript)}`;
+        const now = new Date().toISOString();
+        return normalizeSources([
+          {
+            id: `source_${stableHash(`${identity}:${capture?.captureId || now}`)}`,
+            identity,
+            kind: "chatbot",
+            provider: "DeepSeek",
+            title: String(capture?.title || "当前 DeepSeek 网页对话").slice(0, 500),
+            transcript,
+            primary: true,
+            created_at: capture?.capturedAt || now,
+            updated_at: now
+          }
+        ]);
       }
 
       function sourcesFingerprint(sources) {
@@ -359,6 +386,7 @@ ${listLines(handoff.open_questions)}`;
         onApplyReview,
         onBack,
         onClarify,
+        onRecapture,
         onReview,
         onRevise,
         projectPath,
@@ -509,7 +537,7 @@ ${listLines(handoff.open_questions)}`;
                     lineHeight: 1.5
                   }
                 },
-                "可以逐条在这里回答，或复制问题回到左侧 DeepSeek 继续讨论后重新导入。"
+                "可以逐条在这里回答，或复制问题回到左侧 DeepSeek 继续讨论后重新抓取完整对话。"
               ),
               ...questions.map((question, index) =>
                 h(
@@ -531,7 +559,13 @@ ${listLines(handoff.open_questions)}`;
               ),
               h(
                 "div",
-                { style: { display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" } },
+                {
+                  style: {
+                    display: "grid",
+                    gap: 8,
+                    gridTemplateColumns: "1fr 1fr"
+                  }
+                },
                 h(
                   Button,
                   {
@@ -550,6 +584,16 @@ ${listLines(handoff.open_questions)}`;
                     }
                   },
                   "复制问题到 DeepSeek"
+                ),
+                h(
+                  Button,
+                  {
+                    disabled: Boolean(busy) || !onRecapture,
+                    icon: h(IconRefreshOutline16),
+                    variant: "outline",
+                    onClick: onRecapture
+                  },
+                  busy === "capture" ? "重新抓取中…" : "重新抓取当前对话"
                 ),
                 h(
                   Button,
@@ -712,7 +756,7 @@ ${listLines(handoff.open_questions)}`;
                 padding: 16
               }
             },
-            "尚未导入当前 DeepSeek 对话。请在左侧对话中复制需要交接的完整聊天，再从剪贴板导入。"
+            "尚未抓取当前 DeepSeek 对话。点击“获取交接需求”，SpecsRelay 会自动抓取完整多轮对话并使用 DSH Skill 整理。"
           );
         }
         return h(
@@ -931,6 +975,7 @@ ${listLines(handoff.open_questions)}`;
         useSessions
       }) {
         const [busy, setBusy] = useState("");
+        const [captureBridgeReady, setCaptureBridgeReady] = useState(false);
         const [compactLayout, setCompactLayout] = useState(false);
         const [compactPane, setCompactPane] = useState("web");
         const [frameKey, setFrameKey] = useState(0);
@@ -946,6 +991,8 @@ ${listLines(handoff.open_questions)}`;
         const [panel, setPanel] = useState("home");
         const [reviewResult, setReviewResult] = useState(null);
         const [summary, setSummary] = useState(null);
+        const captureFrameRef = useRef(null);
+        const capturePendingRef = useRef(null);
         const viewRef = useRef(null);
         const state = useInbox();
         const currentWorkspace = useSessions(
@@ -978,6 +1025,51 @@ ${listLines(handoff.open_questions)}`;
           });
           observer.observe(node);
           return () => observer.disconnect();
+        }, []);
+
+        useEffect(() => {
+          const onCaptureMessage = (event) => {
+            if (
+              event.origin !== DEEPSEEK_ORIGIN ||
+              event.source !== captureFrameRef.current?.contentWindow
+            ) {
+              return;
+            }
+            const value = event.data;
+            if (
+              !value ||
+              typeof value !== "object" ||
+              value.protocolVersion !== CAPTURE_PROTOCOL_VERSION
+            ) {
+              return;
+            }
+            if (value.type === CAPTURE_READY_TYPE) {
+              setCaptureBridgeReady(true);
+              return;
+            }
+            const pending = capturePendingRef.current;
+            if (
+              value.type !== CAPTURE_RESULT_TYPE ||
+              !pending ||
+              value.requestId !== pending.requestId
+            ) {
+              return;
+            }
+            clearTimeout(pending.timeoutId);
+            capturePendingRef.current = null;
+            if (value.ok) pending.resolve(value.receipt);
+            else pending.reject(new Error(value.error || "自动抓取失败。"));
+          };
+          window.addEventListener("message", onCaptureMessage);
+          return () => {
+            window.removeEventListener("message", onCaptureMessage);
+            const pending = capturePendingRef.current;
+            if (pending) {
+              clearTimeout(pending.timeoutId);
+              capturePendingRef.current = null;
+              pending.reject(new Error("DeepSeek 捕获页面已关闭。"));
+            }
+          };
         }, []);
 
         useEffect(() => {
@@ -1058,8 +1150,69 @@ ${listLines(handoff.open_questions)}`;
           }
         };
 
-        const organize = async (kind, extra = {}) => {
-          if (sources.length === 0) return;
+        const probeCaptureBridge = () => {
+          const target = captureFrameRef.current?.contentWindow;
+          if (!target) return;
+          target.postMessage(
+            {
+              type: CAPTURE_PROBE_TYPE,
+              protocolVersion: CAPTURE_PROTOCOL_VERSION
+            },
+            DEEPSEEK_ORIGIN
+          );
+        };
+
+        const requestCaptureDelivery = (requestId) => {
+          const target = captureFrameRef.current?.contentWindow;
+          if (!target) {
+            return Promise.reject(new Error("DeepSeek 网页尚未准备好。"));
+          }
+          return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              if (capturePendingRef.current?.requestId === requestId) {
+                capturePendingRef.current = null;
+              }
+              reject(
+                new Error(
+                  "自动抓取组件未响应。请确认 SpecsRelay 浏览器扩展已更新并允许访问 DeepSeek。"
+                )
+              );
+            }, CAPTURE_TIMEOUT_MS);
+            capturePendingRef.current = {
+              requestId,
+              resolve,
+              reject,
+              timeoutId
+            };
+            target.postMessage(
+              {
+                type: CAPTURE_REQUEST_TYPE,
+                protocolVersion: CAPTURE_PROTOCOL_VERSION,
+                requestId
+              },
+              DEEPSEEK_ORIGIN
+            );
+          });
+        };
+
+        const fetchCapturedConversation = async (requestId) => {
+          const response = await fetch(
+            `${API}/captures/latest?requestId=${encodeURIComponent(requestId)}`,
+            { cache: "no-store" }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+          }
+          if (!data.item) {
+            throw new Error("DSH 尚未收到自动抓取的 DeepSeek 对话。请重试。");
+          }
+          return data.item;
+        };
+
+        const organizeSources = async (kind, sourceItems, extra = {}) => {
+          if (sourceItems.length === 0) return;
+          const fingerprint = sourcesFingerprint(sourceItems);
           setBusy(kind);
           setMessage("");
           try {
@@ -1068,7 +1221,7 @@ ${listLines(handoff.open_questions)}`;
               headers: { "content-type": "application/json" },
               body: JSON.stringify({
                 sessionId,
-                text: formatSourcesTranscript(sources),
+                text: formatSourcesTranscript(sourceItems),
                 ...extra
               }),
               signal: AbortSignal.timeout(190000)
@@ -1083,7 +1236,7 @@ ${listLines(handoff.open_questions)}`;
                 ? data.handoff.open_questions.map(() => "")
                 : []
             );
-            setIntegratedFingerprint(currentFingerprint);
+            setIntegratedFingerprint(fingerprint);
             setReviewResult(null);
             setPanel("summary");
             setMessageKind("success");
@@ -1092,6 +1245,36 @@ ${listLines(handoff.open_questions)}`;
                 ? "需求分析 Skill 已完成强化，但仍有需要你确认的产品决定。"
                 : `已使用 ${data.skill?.name || "SpecsRelay 需求分析 Skill"}，并由 DSH 的 ${data.provider} · ${data.model} 完成需求整理。`
             );
+          } catch (error) {
+            setMessageKind("error");
+            setMessage(error instanceof Error ? error.message : String(error));
+          } finally {
+            setBusy("");
+          }
+        };
+
+        const organize = (kind, extra = {}) =>
+          organizeSources(kind, sources, extra);
+
+        const captureAndOrganize = async () => {
+          if (!captureBridgeReady || busy) return;
+          setBusy("capture");
+          setMessage("");
+          try {
+            const requestId = crypto.randomUUID();
+            await requestCaptureDelivery(requestId);
+            const capture = await fetchCapturedConversation(requestId);
+            const nextSources = addCapturedRequirementSource(capture);
+            setSources(nextSources);
+            setPanel("home");
+            setManualOpen(false);
+            setManualText("");
+            setReviewResult(null);
+            setMessageKind("success");
+            setMessage(
+              `已自动抓取 ${capture.messageCount} 条 DeepSeek 消息，正在使用 DSH Skill 整理需求。`
+            );
+            await organizeSources("capture", nextSources);
           } catch (error) {
             setMessageKind("error");
             setMessage(error instanceof Error ? error.message : String(error));
@@ -1280,7 +1463,10 @@ ${listLines(handoff.open_questions)}`;
                   icon: h(IconRefreshOutline16),
                   size: "sm",
                   variant: "toolbar",
-                  onClick: () => setFrameKey((value) => value + 1)
+                  onClick: () => {
+                    setCaptureBridgeReady(false);
+                    setFrameKey((value) => value + 1);
+                  }
                 },
                 "刷新网页"
               ),
@@ -1323,10 +1509,15 @@ ${listLines(handoff.open_questions)}`;
               },
               h("iframe", {
                 key: frameKey,
+                ref: captureFrameRef,
                 src: DEEPSEEK_URL,
                 title: "DeepSeek 网页端",
                 allow: "clipboard-read; clipboard-write",
                 referrerPolicy: "strict-origin-when-cross-origin",
+                onLoad: () => {
+                  setCaptureBridgeReady(false);
+                  setTimeout(probeCaptureBridge, 0);
+                },
                 style: {
                   background: "#fff",
                   border: 0,
@@ -1446,6 +1637,9 @@ ${listLines(handoff.open_questions)}`;
                       },
                       onBack: () => setPanel("home"),
                       onClarify: () => void clarify(),
+                      onRecapture: captureBridgeReady
+                        ? () => void captureAndOrganize()
+                        : null,
                       onReview: () => void review(),
                       onRevise: (instruction) =>
                         void organize("revision", {
@@ -1477,17 +1671,68 @@ ${listLines(handoff.open_questions)}`;
                               margin: 0
                             }
                           },
-                          "唯一来源是左侧当前 DeepSeek 网页对话。导入后，SpecsRelay 会调用 DSH 已配置的 DeepSeek 模型，并使用内置需求分析 Skill 强化需求。"
+                          "唯一来源是左侧当前 DeepSeek 网页对话。点击“获取交接需求”后，SpecsRelay 会自动抓取完整多轮对话，并调用 DSH 已配置的 DeepSeek 模型和内置需求分析 Skill。"
                         ),
                         h(
                           "div",
                           {
                             style: {
-                              display: "grid",
-                              gap: 8,
-                              gridTemplateColumns: "1fr 1fr"
+                              alignItems: "center",
+                              display: "flex",
+                              gap: 7,
+                              fontSize: 12
                             }
                           },
+                          h(StateDot, {
+                            state: captureBridgeReady ? "done" : "warning"
+                          }),
+                          captureBridgeReady
+                            ? "DeepSeek 自动抓取已连接"
+                            : "正在等待 DeepSeek 自动抓取组件"
+                        ),
+                        h(
+                          Button,
+                          {
+                            disabled: !captureBridgeReady || Boolean(busy),
+                            icon: h(IconSkillOutline16),
+                            variant: "primary",
+                            onClick: () => void captureAndOrganize()
+                          },
+                          busy === "capture"
+                            ? "正在抓取并整理需求…"
+                            : sources.length
+                              ? "重新获取交接需求"
+                              : "获取交接需求"
+                        ),
+                        h(
+                          "details",
+                          {
+                            style: {
+                              borderTop: "1px solid var(--dsw-alias-border-subtle)",
+                              paddingTop: 8
+                            }
+                          },
+                          h(
+                            "summary",
+                            {
+                              style: {
+                                color: "var(--dsw-alias-text-tertiary)",
+                                cursor: "pointer",
+                                fontSize: 12
+                              }
+                            },
+                            "高级回退：从剪贴板或手动粘贴"
+                          ),
+                          h(
+                            "div",
+                            {
+                              style: {
+                                display: "grid",
+                                gap: 8,
+                                gridTemplateColumns: "1fr 1fr",
+                                marginTop: 8
+                              }
+                            },
                           h(
                             Button,
                             {
@@ -1512,43 +1757,52 @@ ${listLines(handoff.open_questions)}`;
                             },
                             manualOpen ? "收起粘贴框" : "手动粘贴"
                           )
-                        ),
-                        manualOpen &&
-                          h(
-                            "section",
-                            { style: { display: "grid", gap: 8 } },
-                            h("textarea", {
-                              value: manualText,
-                              placeholder: "把 DeepSeek 对话或分享内容粘贴到这里…",
-                              rows: 9,
-                              style: {
-                                ...textAreaStyle,
-                                lineHeight: 1.5,
-                                minHeight: 180
-                              },
-                              onChange: (event) => setManualText(event.target.value)
-                            }),
+                          ),
+                          manualOpen &&
                             h(
-                              Button,
+                              "section",
                               {
-                                icon: h(IconCheckOutline16),
-                                variant: "primary",
-                                onClick: () => {
-                                  try {
-                                    acceptImportedText(manualText, "manual");
-                                  } catch (error) {
-                                    setMessageKind("error");
-                                    setMessage(
-                                      error instanceof Error
-                                        ? error.message
-                                        : String(error)
-                                    );
-                                  }
+                                style: {
+                                  display: "grid",
+                                  gap: 8,
+                                  marginTop: 8
                                 }
                               },
-                              sources.length ? "替换当前 DeepSeek 对话" : "使用这份 DeepSeek 对话"
+                              h("textarea", {
+                                value: manualText,
+                                placeholder: "把 DeepSeek 对话或分享内容粘贴到这里…",
+                                rows: 9,
+                                style: {
+                                  ...textAreaStyle,
+                                  lineHeight: 1.5,
+                                  minHeight: 180
+                                },
+                                onChange: (event) => setManualText(event.target.value)
+                              }),
+                              h(
+                                Button,
+                                {
+                                  icon: h(IconCheckOutline16),
+                                  variant: "primary",
+                                  onClick: () => {
+                                    try {
+                                      acceptImportedText(manualText, "manual");
+                                    } catch (error) {
+                                      setMessageKind("error");
+                                      setMessage(
+                                        error instanceof Error
+                                          ? error.message
+                                          : String(error)
+                                      );
+                                    }
+                                  }
+                                },
+                                sources.length
+                                  ? "替换当前 DeepSeek 对话"
+                                  : "使用这份 DeepSeek 对话"
+                              )
                             )
-                          ),
+                        ),
                         h(DeepSeekConversationPanel, {
                           source: sources[0] || null,
                           onRemove: () => {
@@ -1654,7 +1908,7 @@ ${listLines(handoff.open_questions)}`;
                     padding: "9px 14px"
                   }
                 },
-                "当前 DeepSeek 对话、需求和最近 3 份恢复记录保存在此浏览器；只有点击 Skill 分析、澄清或评审后才调用 DSH 已配置的 DeepSeek 模型。无需另填 API Key。"
+                "当前 DeepSeek 对话、需求和最近 3 份恢复记录保存在此浏览器；点击“获取交接需求”会自动抓取并调用 DSH 已配置的 DeepSeek 模型。无需另填 API Key。"
               )
             )
           ),
@@ -1667,7 +1921,7 @@ ${listLines(handoff.open_questions)}`;
                 margin: 0
               }
             },
-            "DeepSeek 登录状态由当前浏览器管理。SpecsRelay 不会自动读取跨域网页；复制和导入均由你主动触发。"
+            "DeepSeek 登录状态由当前浏览器管理。自动抓取由 SpecsRelay 浏览器捕获组件在当前 DeepSeek 页面内执行，原始对话通过本地桥直接交给 DSH。"
           )
         );
       }
