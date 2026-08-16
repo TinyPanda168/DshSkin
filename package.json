@@ -1,6 +1,6 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Single-conversation DeepSeek requirement analysis skill and DSH handoff workflow.",
   "type": "module",
   "main": "index.js",
@@ -34,6 +34,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-sidebar"
       ],
       "platform": "web"

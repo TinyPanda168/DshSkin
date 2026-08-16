@@ -4,7 +4,7 @@
 
 ## English
 
-SpecsRelay companion for the official DeepSeek Harness WebUI. Version 0.6 keeps the official DeepSeek web app and a persistent SpecsRelay sidebar in one DSH tab. Unlike the Chrome extension, this DSH edition has exactly one input: the currently selected DeepSeek web conversation. It uses DSH's configured official DeepSeek model together with the bundled `specsrelay-requirement-analysis` Skill, then follows the familiar clarification, optional review, preview, confirmation, and DSH draft-loading flow.
+SpecsRelay companion for the official DeepSeek Harness WebUI. Version 0.6.1 keeps the official DeepSeek web app and a persistent SpecsRelay sidebar in one DSH tab. Unlike the Chrome extension, this DSH edition has exactly one input: the currently selected DeepSeek web conversation. It uses DSH's configured official DeepSeek model together with the bundled `specsrelay-requirement-analysis` Skill, then follows the familiar clarification, optional review, preview, confirmation, and DSH draft-loading flow. Buttons, pills, status indicators, notifications, and icons come from DSH's native WebUI primitives. Narrow tablet layouts switch between the DeepSeek and SpecsRelay panes without unmounting either pane.
 
 ### Install from GitHub
 
@@ -38,7 +38,7 @@ The synchronized copy inside the SpecsRelay repository can be installed directly
 pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-### Version 0.6 boundaries
+### Version 0.6.1 boundaries
 
 - The supported surface is the official DSH WebUI profile.
 - DeepSeek controls whether its web app permits iframe embedding.
@@ -54,7 +54,7 @@ pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deeps
 
 ## 简体中文
 
-这是面向 DeepSeek Harness 官方 WebUI 的 SpecsRelay 配套插件。0.6 版本把 DeepSeek 官方网页和 SpecsRelay 常驻侧栏放在同一个 DSH 页签中。与 Chrome 扩展版不同，DSH 版只有一个输入来源：当前打开的 DeepSeek 网页对话。插件会复用 DSH 已配置的 DeepSeek 官方模型，并加载内置的 `specsrelay-requirement-analysis` Skill 强化需求，之后继续沿用澄清、可选评审、预览、确认和载入 DSH 草稿的流程。
+这是面向 DeepSeek Harness 官方 WebUI 的 SpecsRelay 配套插件。0.6.1 版本把 DeepSeek 官方网页和 SpecsRelay 常驻侧栏放在同一个 DSH 页签中。与 Chrome 扩展版不同，DSH 版只有一个输入来源：当前打开的 DeepSeek 网页对话。插件会复用 DSH 已配置的 DeepSeek 官方模型，并加载内置的 `specsrelay-requirement-analysis` Skill 强化需求，之后继续沿用澄清、可选评审、预览、确认和载入 DSH 草稿的流程。按钮、胶囊标签、状态提示、通知和图标全部复用 DSH WebUI 原生组件；平板窄屏会在 DeepSeek 与 SpecsRelay 两个面板之间切换，但不会卸载任一面板。
 
 ### 从 GitHub 安装
 
@@ -88,7 +88,7 @@ pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
 pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-### 0.6 版本边界
+### 0.6.1 版本边界
 
 - 当前支持范围是 DSH 官方 WebUI profile。
 - DeepSeek 官方网页是否允许 iframe 嵌入由 DeepSeek 决定。

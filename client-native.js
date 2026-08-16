@@ -8,9 +8,29 @@
         createElement: h,
         useEffect,
         useMemo,
+        useRef,
         useState,
         useSyncExternalStore
       } = React;
+      const {
+        Button,
+        Pill,
+        StateDot,
+        Toast,
+        IconArchiveOutline20,
+        IconCheckOutline16,
+        IconChevronLeftOutline14,
+        IconCloseOutline16,
+        IconCopyOutline16,
+        IconEditOutline16,
+        IconEnhanceOutline16,
+        IconNewChatOutline16,
+        IconRefreshOutline16,
+        IconSendOutline14,
+        IconSkillOutline16,
+        IconTrashOutline16,
+        IconWarningOutline16
+      } = require("@deepseek-ai/dsh-client-ui-primitives");
 
       const API = "/specsrelay/v1";
       const DEEPSEEK_URL = "https://chat.deepseek.com/";
@@ -276,23 +296,16 @@ ${listLines(handoff.open_questions)}`;
         return Boolean(snapshot.sources.length || snapshot.handoff);
       }
 
-      const buttonStyle = {
-        appearance: "none",
-        background: "var(--dsw-alias-bg-layer-2)",
-        border: "1px solid var(--dsw-alias-border-subtle)",
+      const textAreaStyle = {
+        background: "var(--dsw-alias-bg-layer-1)",
+        border: "1px solid var(--dsw-alias-border-l2)",
         borderRadius: 8,
-        color: "var(--dsw-alias-text-primary)",
-        cursor: "pointer",
+        color: "var(--dsw-alias-label-primary)",
         font: "inherit",
-        minHeight: 32,
-        padding: "5px 10px"
-      };
-
-      const primaryButtonStyle = {
-        ...buttonStyle,
-        background: "var(--dsw-alias-brand-primary, #4d6bfe)",
-        borderColor: "transparent",
-        color: "#fff"
+        outline: "none",
+        padding: 10,
+        resize: "vertical",
+        width: "100%"
       };
 
       function loadIntoSession(ctx, sessionId, item) {
@@ -395,10 +408,11 @@ ${listLines(handoff.open_questions)}`;
             },
             h("strong", null, "结构化需求总结"),
             h(
-              "button",
+              Button,
               {
-                type: "button",
-                style: { ...buttonStyle, minHeight: 28, padding: "3px 9px" },
+                icon: h(IconChevronLeftOutline14),
+                size: "sm",
+                variant: "ghost",
                 onClick: onBack
               },
               "返回"
@@ -507,13 +521,9 @@ ${listLines(handoff.open_questions)}`;
                     value: answers[index] || "",
                     placeholder: "填写你的决定…",
                     style: {
+                      ...textAreaStyle,
                       background: "var(--dsw-alias-bg-base)",
-                      border: "1px solid var(--dsw-alias-border-subtle)",
-                      borderRadius: 8,
-                      color: "var(--dsw-alias-text-primary)",
-                      font: "inherit",
-                      padding: 8,
-                      resize: "vertical"
+                      padding: 8
                     },
                     onChange: (event) => onAnswer(index, event.target.value)
                   })
@@ -523,10 +533,10 @@ ${listLines(handoff.open_questions)}`;
                 "div",
                 { style: { display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" } },
                 h(
-                  "button",
+                  Button,
                   {
-                    type: "button",
-                    style: buttonStyle,
+                    icon: h(IconCopyOutline16),
+                    variant: "outline",
                     onClick: async () => {
                       const text = `为了把当前需求准确交给 Coding Agent，请继续基于上面的完整对话逐条确认以下问题，不要替我假设答案：\n\n${questions
                         .map((question, index) => `${index + 1}. ${question}`)
@@ -542,13 +552,13 @@ ${listLines(handoff.open_questions)}`;
                   "复制问题到 DeepSeek"
                 ),
                 h(
-                  "button",
+                  Button,
                   {
-                    type: "button",
                     disabled:
                       Boolean(busy) ||
                       questions.some((_, index) => !answers[index]?.trim()),
-                    style: primaryButtonStyle,
+                    icon: h(IconEnhanceOutline16),
+                    variant: "primary",
                     onClick: onClarify
                   },
                   busy === "clarify" ? "重新整理中…" : "提交答案并重新整理"
@@ -557,11 +567,11 @@ ${listLines(handoff.open_questions)}`;
             ),
           ready &&
             h(
-              "button",
+              Button,
               {
-                type: "button",
                 disabled: Boolean(busy),
-                style: buttonStyle,
+                icon: h(IconEnhanceOutline16),
+                variant: "outline",
                 onClick: onReview
               },
               busy === "review"
@@ -580,23 +590,15 @@ ${listLines(handoff.open_questions)}`;
                   rows: 4,
                   value: revisionInstruction,
                   placeholder: "例如：保留现有范围，但把离线恢复改成非目标。",
-                  style: {
-                    background: "var(--dsw-alias-bg-layer-2)",
-                    border: "1px solid var(--dsw-alias-border-subtle)",
-                    borderRadius: 8,
-                    color: "var(--dsw-alias-text-primary)",
-                    font: "inherit",
-                    padding: 8,
-                    resize: "vertical"
-                  },
+                  style: textAreaStyle,
                   onChange: (event) => setRevisionInstruction(event.target.value)
                 }),
                 h(
-                  "button",
+                  Button,
                   {
-                    type: "button",
                     disabled: Boolean(busy) || !revisionInstruction.trim(),
-                    style: buttonStyle,
+                    icon: h(IconEditOutline16),
+                    variant: "outline",
                     onClick: () => onRevise(revisionInstruction)
                   },
                   busy === "revision" ? "修订中…" : "按说明生成新版本"
@@ -639,8 +641,12 @@ ${listLines(handoff.open_questions)}`;
                 values: reviewResult.review.recommendations
               }),
               h(
-                "button",
-                { type: "button", style: primaryButtonStyle, onClick: onApplyReview },
+                Button,
+                {
+                  icon: h(IconCheckOutline16),
+                  variant: "primary",
+                  onClick: onApplyReview
+                },
                 "采用增强后的需求"
               )
             ),
@@ -654,15 +660,10 @@ ${listLines(handoff.open_questions)}`;
                 rows: 10,
                 value: prompt,
                 style: {
-                  background: "var(--dsw-alias-bg-layer-2)",
-                  border: "1px solid var(--dsw-alias-border-subtle)",
-                  borderRadius: 8,
-                  color: "var(--dsw-alias-text-secondary)",
-                  font: "inherit",
+                  ...textAreaStyle,
+                  color: "var(--dsw-alias-label-secondary)",
                   fontSize: 12,
-                  lineHeight: 1.5,
-                  padding: 9,
-                  resize: "vertical"
+                  lineHeight: 1.5
                 }
               }),
               h(
@@ -684,34 +685,17 @@ ${listLines(handoff.open_questions)}`;
                 "我已检查内容；只载入 DSH 输入草稿，不自动发送。"
               ),
               h(
-                "button",
+                Button,
                 {
-                  type: "button",
                   disabled: !confirmed,
-                  style: {
-                    ...primaryButtonStyle,
-                    cursor: confirmed ? "pointer" : "not-allowed",
-                    opacity: confirmed ? 1 : 0.5
-                  },
+                  icon: h(IconSendOutline14),
+                  variant: "primary",
                   onClick: load
                 },
                 "载入当前 DSH 草稿"
               )
             ),
-          message &&
-            h(
-              "div",
-              {
-                role: "status",
-                style: {
-                  color: message.startsWith("已载入")
-                    ? "var(--dsw-alias-state-success-primary)"
-                    : "var(--dsw-alias-state-error-primary)",
-                  fontSize: 13
-                }
-              },
-              message
-            )
+          message && h(Toast, { text: message, onDone: () => setMessage("") })
         );
       }
 
@@ -763,16 +747,7 @@ ${listLines(handoff.open_questions)}`;
                   }
                 },
                 h("strong", { style: { fontSize: 13 } }, source.title),
-                h(
-                  "span",
-                  {
-                    style: {
-                      color: "var(--dsw-alias-brand-primary, #4d6bfe)",
-                      fontSize: 11
-                    }
-                  },
-                  "唯一来源"
-                )
+                h(Pill, { active: true }, "唯一来源")
               ),
               h(
                 "div",
@@ -800,10 +775,11 @@ ${listLines(handoff.open_questions)}`;
                 source.transcript.length > 360 ? "\n…" : ""
               ),
               h(
-                "button",
+                Button,
                 {
-                  type: "button",
-                  style: { ...buttonStyle, minHeight: 27, padding: "2px 7px" },
+                  icon: h(IconTrashOutline16),
+                  size: "sm",
+                  variant: "ghost",
                   onClick: onRemove
                 },
                 "移除当前对话"
@@ -867,24 +843,15 @@ ${listLines(handoff.open_questions)}`;
             item.objective
           ),
           h(
-            "button",
-            { type: "button", style: buttonStyle, onClick: () => void load() },
+            Button,
+            {
+              icon: h(IconSendOutline14),
+              variant: "outline",
+              onClick: () => void load()
+            },
             item.state === "loaded" ? "重新载入草稿" : "载入当前会话草稿"
           ),
-          message &&
-            h(
-              "div",
-              {
-                role: "status",
-                style: {
-                  color: message.startsWith("已载入")
-                    ? "var(--dsw-alias-state-success-primary)"
-                    : "var(--dsw-alias-state-error-primary)",
-                  fontSize: 12
-                }
-              },
-              message
-            )
+          message && h(Toast, { text: message, onDone: () => setMessage("") })
         );
       }
 
@@ -907,19 +874,21 @@ ${listLines(handoff.open_questions)}`;
               "div",
               { style: { display: "flex", gap: 6 } },
               h(
-                "button",
+                Button,
                 {
-                  type: "button",
-                  style: { ...buttonStyle, minHeight: 28, padding: "3px 8px" },
+                  icon: h(IconRefreshOutline16),
+                  size: "sm",
+                  variant: "toolbar",
                   onClick: onRefresh
                 },
                 loading ? "刷新中…" : "刷新"
               ),
               h(
-                "button",
+                Button,
                 {
-                  type: "button",
-                  style: { ...buttonStyle, minHeight: 28, padding: "3px 8px" },
+                  icon: h(IconChevronLeftOutline14),
+                  size: "sm",
+                  variant: "ghost",
                   onClick: onBack
                 },
                 "返回"
@@ -962,6 +931,8 @@ ${listLines(handoff.open_questions)}`;
         useSessions
       }) {
         const [busy, setBusy] = useState("");
+        const [compactLayout, setCompactLayout] = useState(false);
+        const [compactPane, setCompactPane] = useState("web");
         const [frameKey, setFrameKey] = useState(0);
         const [sources, setSources] = useState([]);
         const [integratedFingerprint, setIntegratedFingerprint] = useState("");
@@ -975,6 +946,7 @@ ${listLines(handoff.open_questions)}`;
         const [panel, setPanel] = useState("home");
         const [reviewResult, setReviewResult] = useState(null);
         const [summary, setSummary] = useState(null);
+        const viewRef = useRef(null);
         const state = useInbox();
         const currentWorkspace = useSessions(
           (sessions) => sessions.byId[sessionId]?.cwd || ""
@@ -997,6 +969,16 @@ ${listLines(handoff.open_questions)}`;
         const needsIntegration = Boolean(
           currentFingerprint && currentFingerprint !== integratedFingerprint
         );
+
+        useEffect(() => {
+          const node = viewRef.current;
+          if (!node || typeof ResizeObserver !== "function") return;
+          const observer = new ResizeObserver(([entry]) => {
+            if (entry) setCompactLayout(entry.contentRect.width < 900);
+          });
+          observer.observe(node);
+          return () => observer.disconnect();
+        }, []);
 
         useEffect(() => {
           let restored = normalizeWorkspace(null);
@@ -1215,6 +1197,7 @@ ${listLines(handoff.open_questions)}`;
           "section",
           {
             "aria-label": "SpecsRelay DeepSeek 网页",
+            ref: viewRef,
             style: {
               color: "var(--dsw-alias-text-primary)",
               display: "flex",
@@ -1259,22 +1242,57 @@ ${listLines(handoff.open_questions)}`;
                   : "当前 DSH 会话尚未关联项目"
               )
             ),
+          compactLayout &&
             h(
               "div",
+              {
+                role: "tablist",
+                "aria-label": "DeepSeek 与 SpecsRelay",
+                style: { display: "flex", gap: 6 }
+              },
+              h(
+                Pill,
+                {
+                  active: compactPane === "web",
+                  role: "tab",
+                  "aria-selected": compactPane === "web",
+                  onClick: () => setCompactPane("web")
+                },
+                "DeepSeek 网页"
+              ),
+              h(
+                Pill,
+                {
+                  active: compactPane === "relay",
+                  role: "tab",
+                  "aria-selected": compactPane === "relay",
+                  onClick: () => setCompactPane("relay")
+                },
+                "SpecsRelay"
+              )
+            ),
+          h(
+            "div",
               { style: { display: "flex", gap: 8 } },
               h(
-                "button",
+                Button,
                 {
-                  type: "button",
-                  style: buttonStyle,
+                  icon: h(IconRefreshOutline16),
+                  size: "sm",
+                  variant: "toolbar",
                   onClick: () => setFrameKey((value) => value + 1)
                 },
                 "刷新网页"
               ),
               onClose &&
                 h(
-                  "button",
-                  { type: "button", style: buttonStyle, onClick: onClose },
+                  Button,
+                  {
+                    icon: h(IconCloseOutline16),
+                    size: "sm",
+                    variant: "ghost",
+                    onClick: onClose
+                  },
                   "关闭"
                 )
             )
@@ -1286,7 +1304,9 @@ ${listLines(handoff.open_questions)}`;
                 display: "grid",
                 flex: "1 1 auto",
                 gap: 10,
-                gridTemplateColumns: "minmax(0, 1fr) minmax(340px, 400px)",
+                gridTemplateColumns: compactLayout
+                  ? "minmax(0, 1fr)"
+                  : "minmax(0, 1fr) minmax(340px, 400px)",
                 minHeight: 0
               }
             },
@@ -1296,6 +1316,7 @@ ${listLines(handoff.open_questions)}`;
                 style: {
                   border: "1px solid var(--dsw-alias-border-subtle)",
                   borderRadius: 12,
+                  display: compactLayout && compactPane !== "web" ? "none" : "block",
                   minHeight: 0,
                   overflow: "hidden"
                 }
@@ -1324,7 +1345,7 @@ ${listLines(handoff.open_questions)}`;
                   background: "var(--dsw-alias-bg-layer-1)",
                   border: "1px solid var(--dsw-alias-border-subtle)",
                   borderRadius: 12,
-                  display: "flex",
+                  display: compactLayout && compactPane !== "relay" ? "none" : "flex",
                   flexDirection: "column",
                   minHeight: 0,
                   overflow: "hidden"
@@ -1368,19 +1389,19 @@ ${listLines(handoff.open_questions)}`;
                   "div",
                   { style: { display: "flex", gap: 6, marginLeft: "auto" } },
                   h(
-                    "button",
+                    Pill,
                     {
-                      type: "button",
-                      style: { ...buttonStyle, minHeight: 28, padding: "3px 8px" },
+                      active: panel === "home",
                       onClick: () => setPanel("home")
                     },
                     "需求分析"
                   ),
                   h(
-                    "button",
+                    Button,
                     {
-                      type: "button",
-                      style: { ...buttonStyle, minHeight: 28, padding: "3px 8px" },
+                      icon: h(IconNewChatOutline16),
+                      size: "sm",
+                      variant: "ghost",
                       onClick: newRequirement
                     },
                     "新需求"
@@ -1468,11 +1489,11 @@ ${listLines(handoff.open_questions)}`;
                             }
                           },
                           h(
-                            "button",
+                            Button,
                             {
-                              type: "button",
                               disabled: Boolean(busy),
-                              style: buttonStyle,
+                              icon: h(IconCopyOutline16),
+                              variant: "outline",
                               onClick: () => void importClipboard()
                             },
                             busy === "clipboard"
@@ -1482,11 +1503,11 @@ ${listLines(handoff.open_questions)}`;
                                 : "从剪贴板导入当前对话"
                           ),
                           h(
-                            "button",
+                            Button,
                             {
-                              type: "button",
                               disabled: Boolean(busy),
-                              style: buttonStyle,
+                              icon: h(IconEditOutline16),
+                              variant: "outline",
                               onClick: () => setManualOpen((value) => !value)
                             },
                             manualOpen ? "收起粘贴框" : "手动粘贴"
@@ -1501,23 +1522,17 @@ ${listLines(handoff.open_questions)}`;
                               placeholder: "把 DeepSeek 对话或分享内容粘贴到这里…",
                               rows: 9,
                               style: {
-                                background: "var(--dsw-alias-bg-layer-2)",
-                                border: "1px solid var(--dsw-alias-border-subtle)",
-                                borderRadius: 8,
-                                color: "var(--dsw-alias-text-primary)",
-                                font: "inherit",
+                                ...textAreaStyle,
                                 lineHeight: 1.5,
-                                padding: 10,
-                                resize: "vertical",
-                                width: "100%"
+                                minHeight: 180
                               },
                               onChange: (event) => setManualText(event.target.value)
                             }),
                             h(
-                              "button",
+                              Button,
                               {
-                                type: "button",
-                                style: buttonStyle,
+                                icon: h(IconCheckOutline16),
+                                variant: "primary",
                                 onClick: () => {
                                   try {
                                     acceptImportedText(manualText, "manual");
@@ -1548,26 +1563,23 @@ ${listLines(handoff.open_questions)}`;
                             "div",
                             {
                               style: {
-                                color: needsIntegration
-                                  ? "var(--dsw-alias-state-warning-primary, #b7791f)"
-                                  : "var(--dsw-alias-state-success-primary)",
+                                alignItems: "center",
+                                display: "flex",
+                                gap: 7,
                                 fontSize: 12
                               }
                             },
+                            h(StateDot, { state: needsIntegration ? "warning" : "done" }),
                             needsIntegration
                               ? "当前 DeepSeek 对话 · 待 Skill 分析"
                               : "当前 DeepSeek 对话 · 已完成 Skill 分析"
                           ),
                         h(
-                          "button",
+                          Button,
                           {
-                            type: "button",
                             disabled: sources.length === 0 || Boolean(busy),
-                            style: {
-                              ...primaryButtonStyle,
-                              cursor: sources.length && !busy ? "pointer" : "not-allowed",
-                              opacity: sources.length && !busy ? 1 : 0.5
-                            },
+                            icon: h(IconSkillOutline16),
+                            variant: "primary",
                             onClick: () => void organize("summary")
                           },
                           busy === "summary"
@@ -1583,13 +1595,15 @@ ${listLines(handoff.open_questions)}`;
                             h("strong", { style: { fontSize: 13 } }, "本地恢复记录"),
                             ...history.map((item, index) =>
                               h(
-                                "button",
+                                Button,
                                 {
                                   key: `${item.savedAt || "history"}-${index}`,
-                                  type: "button",
+                                  size: "sm",
+                                  variant: "toolbar",
                                   style: {
-                                    ...buttonStyle,
+                                    justifyContent: "flex-start",
                                     textAlign: "left",
+                                    width: "100%",
                                     whiteSpace: "normal"
                                   },
                                   onClick: () => restoreHistory(index)
@@ -1601,10 +1615,10 @@ ${listLines(handoff.open_questions)}`;
                             )
                           ),
                         h(
-                          "button",
+                          Button,
                           {
-                            type: "button",
-                            style: buttonStyle,
+                            icon: h(IconArchiveOutline20, { size: 16 }),
+                            variant: "ghost",
                             onClick: openInbox
                           },
                           `交接记录${state.items.length ? ` ${state.items.length}` : ""}`
@@ -1623,23 +1637,11 @@ ${listLines(handoff.open_questions)}`;
                     `无法读取交接记录：${state.error}`
                   ),
                 message &&
-                  h(
-                    "div",
-                    {
-                      role: "status",
-                      style: {
-                        color:
-                          messageKind === "error"
-                            ? "var(--dsw-alias-state-error-primary)"
-                            : messageKind === "success"
-                              ? "var(--dsw-alias-state-success-primary)"
-                              : "var(--dsw-alias-text-secondary)",
-                        fontSize: 12,
-                        lineHeight: 1.5
-                      }
-                    },
-                    message
-                  )
+                  h(Toast, {
+                    text: message,
+                    icon: messageKind === "error" ? h(IconWarningOutline16) : undefined,
+                    onDone: () => setMessage("")
+                  })
               ),
               h(
                 "footer",
@@ -1689,20 +1691,17 @@ ${listLines(handoff.open_questions)}`;
           React.Fragment,
           null,
           h(
-            "button",
+            Button,
             {
-              type: "button",
               onClick,
               title: "打开 DeepSeek 页签",
               "aria-label": "打开 DeepSeek 页签",
+              variant: "ghost",
               style: {
-                ...buttonStyle,
-                alignItems: "center",
-                display: "flex",
-                gap: 8,
                 justifyContent: wide ? "flex-start" : "center",
                 margin: "0 8px",
                 overflow: "hidden",
+                padding: wide ? "0 10px" : 0,
                 width: wide ? "calc(100% - 16px)" : 40
               }
             },
@@ -1770,17 +1769,13 @@ ${listLines(handoff.open_questions)}`;
           }
         };
         return h(
-          "button",
+          Button,
           {
-            type: "button",
+            icon: h(IconSendOutline14),
             onClick,
+            size: "sm",
             title: "载入最近的 SpecsRelay for DeepSeek 需求",
-            style: {
-              ...buttonStyle,
-              fontSize: 12,
-              minHeight: 28,
-              padding: "3px 8px"
-            }
+            variant: "toolbar"
           },
           status
         );
