@@ -22,7 +22,7 @@ export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.8.1";
+export const PLUGIN_VERSION = "0.8.2";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
