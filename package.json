@@ -1,6 +1,6 @@
 {
   "name": "@specsrelay/dsh-deepseek",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Single-conversation DeepSeek requirement analysis skill and DSH handoff workflow.",
   "type": "module",
   "main": "index.js",

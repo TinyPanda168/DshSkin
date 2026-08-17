@@ -19,7 +19,7 @@ From a DeepSeek Harness checkout:
 pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
 ```
 
-Restart the DSH WebUI after installation. No browser extension, developer mode, Steel Cloud account, Steel API Key, or separate model API Key is required. Docker Desktop must be running the first time the DeepSeek tab is opened; the plugin starts its loopback-only Steel Browser service automatically and keeps the DeepSeek profile in a local Docker volume.
+Restart the DSH WebUI after installation. No browser extension, developer mode, external service, or separate model API Key is required. The plugin opens DeepSeek through DSH and keeps its signed-in session in a private local profile.
 
 ### Use
 
@@ -34,8 +34,8 @@ On a tablet, the DeepSeek and SpecsRelay panes become two tabs. Both use the DSH
 
 ### Data and execution boundaries
 
-- Steel Browser binds only to host loopback. DSH proxies the interactive viewer and WebSocket over the existing WebUI origin.
-- The local Steel profile preserves the DeepSeek login. SpecsRelay does not read or store the account password.
+- The DeepSeek page and its interaction stream stay on the existing DSH WebUI origin.
+- A private local profile preserves the DeepSeek login. SpecsRelay does not read or store the account password.
 - Capturing stores one current DeepSeek conversation locally and does not call a model.
 - Integrate, clarify, revise, and review are the only actions that send captured text to the DSH-configured DeepSeek model.
 - The registered `specsrelay-requirement-analysis` Skill is internal to this workflow and does not need separate installation or configuration.
@@ -48,7 +48,7 @@ On a tablet, the DeepSeek and SpecsRelay panes become two tabs. Both use the DSH
 pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-Set `SPECSRELAY_STEEL_URL` only when developing against an already-running loopback Steel Browser service.
+For local development, restart the DSH WebUI after adding the plugin.
 
 ## 简体中文
 
@@ -67,7 +67,7 @@ SpecsRelay for DeepSeek 是面向 DeepSeek Harness 官方 WebUI 的配套插件�
 pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
 ```
 
-安装后重启 DSH WebUI。不需要浏览器扩展、开发者模式、Steel Cloud 账号、Steel API Key，也不需要另外填写模型 API Key。第一次打开 DeepSeek 页签时需要 Docker Desktop 正在运行；插件会自动启动只监听本机回环地址的 Steel Browser，并把 DeepSeek 登录状态保存在本地 Docker volume 中。
+安装后重启 DSH WebUI。不需要浏览器扩展、开发者模式、外部服务，也不需要另外填写模型 API Key。插件会直接通过 DSH 打开 DeepSeek，并在本机私有资料中保留登录状态。
 
 ### 使用方式
 
@@ -82,8 +82,8 @@ pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
 
 ### 数据与执行范围
 
-- Steel Browser 只监听主机回环地址；交互画面和 WebSocket 由 DSH 通过现有 WebUI 地址转发。
-- 本地 Steel profile 会保留 DeepSeek 登录状态；SpecsRelay 不读取或保存账号密码。
+- DeepSeek 页面和交互画面都通过现有 DSH WebUI 地址访问。
+- 本机私有资料会保留 DeepSeek 登录状态；SpecsRelay 不读取或保存账号密码。
 - 抓取只在本地保存当前一份 DeepSeek 对话，不调用模型。
 - 只有整合、澄清、修订和评审会把对话文本交给 DSH 已配置的 DeepSeek 模型。
 - 内置 `specsrelay-requirement-analysis` Skill 只服务于这条工作流，不需要用户另外安装或配置。
@@ -96,4 +96,4 @@ pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
 pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-只有在开发时连接已经运行的本机 Steel Browser，才需要设置 `SPECSRELAY_STEEL_URL`。
+本地添加插件后，重启 DSH WebUI 即可测试。

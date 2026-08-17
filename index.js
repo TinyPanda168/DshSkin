@@ -16,13 +16,13 @@ import {
   isRepairableHandoffError,
   parseHandoffResponse
 } from "./lib/handoff.js";
-import { createSteelBrowserHost } from "./lib/steel-browser.js";
+import { createLocalBrowserHost } from "./lib/local-browser.js";
 
 export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.8.0";
+export const PLUGIN_VERSION = "0.8.1";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
@@ -1015,7 +1015,7 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
   });
   const disposeBrowserViewer = ctx.webServer.register({
     kind: "exact",
-    path: "/specsrelay/steel/v1/sessions/debug",
+    path: "/specsrelay/browser",
     handler: async (req, res) => {
       if (!requireBrowserClient(req, res)) return;
       if (req.method !== "GET") {
@@ -1024,22 +1024,11 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
         return;
       }
       try {
-        const host = req.headers.host;
-        if (typeof host !== "string" || !/^[A-Za-z0-9.:[\]-]+$/.test(host)) {
-          throw new Error("Invalid DSH host header.");
-        }
-        const forwarded = req.headers["x-forwarded-proto"];
-        const protocol =
-          (Array.isArray(forwarded) ? forwarded[0] : forwarded) === "https"
-            ? "wss"
-            : "ws";
-        const html = await browser.viewerHtml(
-          `${protocol}://${host}/specsrelay/steel/v1/sessions/cast`
-        );
+        const html = browser.viewerHtml();
         res.writeHead(200, {
           "cache-control": "no-store",
           "content-length": Buffer.byteLength(html),
-          "content-security-policy": "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src ws: wss:;",
+          "content-security-policy": "default-src 'none'; frame-src 'self'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' ws: wss:;",
           "content-type": "text/html; charset=utf-8"
         });
         res.end(html);
@@ -1050,14 +1039,46 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
       }
     }
   });
+  const disposeBrowserFrame = ctx.webServer.register({
+    kind: "exact",
+    path: "/specsrelay/browser/frame",
+    handler: async (req, res) => {
+      if (!requireBrowserClient(req, res)) return;
+      if (req.method !== "GET") {
+        res.setHeader("allow", "GET");
+        jsonResponse(res, 405, { error: "Method not allowed." });
+        return;
+      }
+      try {
+        const frame = await browser.captureFrame();
+        const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#121416}img{display:block;width:100%;height:100%;object-fit:contain}</style></head><body><img alt="DeepSeek" src="data:image/jpeg;base64,${frame.toString("base64")}"></body></html>`;
+        res.writeHead(200, {
+          "cache-control": "no-store",
+          "content-length": Buffer.byteLength(html),
+          "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline';",
+          "content-type": "text/html; charset=utf-8",
+          "x-content-type-options": "nosniff"
+        });
+        res.end(html);
+      } catch (error) {
+        jsonResponse(res, 503, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
   const disposeBrowserSocket = ctx.webServer.registerUpgrade({
-    path: "/specsrelay/steel/v1/sessions/cast",
-    handler: (req, socket, head) => {
+    path: "/specsrelay/browser/live",
+    handler: async (req, socket, head) => {
       if (!isBrowserRequestAllowed(req)) {
         socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
         return;
       }
-      browser.proxyWebSocket(req, socket, head);
+      try {
+        await browser.acceptViewer(req, socket, head);
+      } catch {
+        socket.destroy();
+      }
     }
   });
   const disposeReceipt = ctx.webServer.register({
@@ -1154,12 +1175,13 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
       }
     }
   });
-  return () => {
+  return async () => {
     disposeReview();
     disposeOrganizerStatus();
     disposeOrganizer();
     disposeReceipt();
     disposeBrowserSocket();
+    disposeBrowserFrame();
     disposeBrowserViewer();
     disposeBrowserCapture();
     disposeBrowserStart();
@@ -1167,6 +1189,7 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
     disposeCapture();
     disposeLatest();
     disposeInbox();
+    await browser.close();
   };
 }
 
@@ -1179,7 +1202,7 @@ export async function apply(ctx) {
 
   const inbox = createInbox();
   const captures = createCaptureInbox();
-  const browser = createSteelBrowserHost();
+  const browser = createLocalBrowserHost();
   ctx.effect(
     () => registerBrowserRoutes(ctx, inbox, captures, browser),
     "specsrelay-deepseek: WebUI routes"
