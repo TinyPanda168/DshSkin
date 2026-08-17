@@ -1,99 +1,123 @@
 # SpecsRelay for DeepSeek
 
-[English](#english) | [简体中文](#简体中文)
+[简体中文](#简体中文) | [English](#english)
 
 ## English
 
-SpecsRelay for DeepSeek is a companion plugin for the official DeepSeek Harness WebUI. It keeps a signed-in DeepSeek web session and the SpecsRelay requirement workbench in one DSH tab.
+SpecsRelay for DeepSeek is a companion plugin for DSH Desktop. It places the real, signed-in DeepSeek website beside the SpecsRelay requirement workbench in one DSH tab.
 
-The workflow has one source and two visible steps:
+### Recommended host
 
-1. Capture the current DeepSeek conversation, then organize, clarify, or review it with the DeepSeek model and requirement-analysis Skill already supplied by DSH.
-2. Check the active project directory and generated prompt, then load it into the current DSH draft. Nothing is submitted automatically.
+Use this plugin with [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop). Its native DeepSeek panel provides the complete signed-in website experience and direct conversation capture required by SpecsRelay. The ordinary browser-based DSH WebUI cannot provide this native panel.
+
+### Use cases
+
+- Turn a product or feature discussion in DeepSeek into an implementation-ready requirement for a DSH project.
+- Preserve the complete multi-turn conversation without copying and pasting it or installing a browser extension.
+- Reuse the DeepSeek model already configured in DSH; no separate model API Key, Docker service, or third-party account is required.
+- Select the target project, review any material clarification questions, and start the DSH Agent from the same workflow.
+
+The workflow has one source and three visible steps:
+
+1. Capture the current DeepSeek conversation, then organize and internally review it with the DeepSeek model and requirement-analysis Skill already supplied by DSH.
+2. Answer any material product questions that appear. This step stays hidden when the requirement is already clear.
+3. Select or confirm the target project directory and generated prompt, then send it to that project's DSH session to start the Agent.
 
 ### Install
 
-From a DeepSeek Harness checkout:
+From the DSH Desktop terminal or a DeepSeek Harness checkout:
 
 ```sh
-pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
+pnpm dsh plugin --profile desktop add github:TinyPanda168/SpecsRelay-DSH
 ```
 
-Restart the DSH WebUI after installation. No browser extension, developer mode, external service, or separate model API Key is required. The plugin opens DeepSeek through DSH and keeps its signed-in session in a private local profile.
+Restart DSH Desktop after installation. No browser extension, developer mode, Docker, external service, or separate model API Key is required. DSH Desktop opens DeepSeek in a sandboxed native Web panel and keeps its signed-in session in an isolated persistent partition.
 
 ### Use
 
 1. Open or create a DSH session with a Workspace.
 2. Select the **DeepSeek** tab or the SpecsRelay icon at the bottom of the sidebar.
 3. Sign in to DeepSeek in the left pane and open the conversation to relay.
-4. Select **Add current conversation as source**.
-5. Select **Integrate and strengthen sources**. Clarification and review remain available when needed.
-6. Check the project directory and prompt, then select **Load current version into DSH draft**.
-
-On a tablet, the DeepSeek and SpecsRelay panes become two tabs. Both use the DSH WebUI origin, so the tablet never needs direct access to a loopback port on the host Mac.
+4. Select **Organize current conversation**. SpecsRelay captures the complete conversation and immediately organizes it with the DSH model and Skill.
+5. Check the organized requirement and answer any clarification questions. The DSH load step remains unavailable until the requirement is complete.
+6. Select or confirm the project directory, acknowledge that sending starts the Agent, then select **Send to DSH and start**.
 
 ### Data and execution boundaries
 
-- The DeepSeek page and its interaction stream stay on the existing DSH WebUI origin.
-- A private local profile preserves the DeepSeek login. SpecsRelay does not read or store the account password.
-- Capturing stores one current DeepSeek conversation locally and does not call a model.
-- Integrate, clarify, revise, and review are the only actions that send captured text to the DSH-configured DeepSeek model.
+- The left pane is a real `WebContentsView`, not a screenshot or remote-control stream.
+- The isolated native session preserves the DeepSeek login. SpecsRelay does not read or store the account password.
+- Node integration and preload access remain disabled; main-frame navigation is limited to `https://chat.deepseek.com`.
+- DOM capture runs only after **Organize current conversation** is selected. Loading, showing, and resizing the page do not capture it.
+- The same action captures the current conversation locally and sends it to the DSH-configured DeepSeek model for requirement organization and internal review. Clarification and revision reuse the same model path; there is no separate review action.
 - The registered `specsrelay-requirement-analysis` Skill is internal to this workflow and does not need separate installation or configuration.
-- Loading changes only the DSH input draft. It never sends the prompt or starts an Agent turn.
-- Manual paste remains only as an emergency fallback.
+- The main **Send to DSH and start** action writes the prompt through DSH's native input API and submits it through the same pipeline as the DSH send button.
+- Once the requirement and project path are ready, SpecsRelay prepares the target DSH session in the background. The final click only performs the local draft write, submit, and navigation; development builds log click-to-submit timing for verification.
+- Restoring an execution snapshot or loading an inbox item still changes only the DSH draft and never starts another Agent turn.
 
 ### Local development
 
 ```sh
-pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
+pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-For local development, restart the DSH WebUI after adding the plugin.
+For local development, restart DSH Desktop after adding the plugin. Ordinary WebUI cannot provide the native DeepSeek panel and reports that DSH Desktop is required.
 
 ## 简体中文
 
-SpecsRelay for DeepSeek 是面向 DeepSeek Harness 官方 WebUI 的配套插件。它把已登录的 DeepSeek 网页和 SpecsRelay 需求工作台放在同一个 DSH 页签中。
+SpecsRelay for DeepSeek 是面向 DSH Desktop 的配套插件。它把真实、已登录的 DeepSeek 网页和 SpecsRelay 需求工作台放在同一个 DSH 页签中。
 
-界面只保留一个来源和两个步骤：
+### 推荐运行环境
 
-1. 抓取当前 DeepSeek 对话，再使用 DSH 已提供的 DeepSeek 模型和需求分析 Skill 进行整理、澄清或评审。
-2. 核对当前项目目录和生成的提示词，然后载入当前 DSH 草稿。插件不会自动发送。
+优先配合 [anywhere-labs 开源的 DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 使用。它提供 SpecsRelay 所需的原生 DeepSeek 网页面板，可保留完整登录体验并直接抓取当前对话。普通浏览器版 DSH WebUI 无法提供这块原生面板。
+
+### 适用场景
+
+- 把 DeepSeek 中已经聊清楚的产品或功能方案，整理成可直接交给 DSH 项目执行的需求。
+- 自动保留完整多轮对话，不需要复制粘贴，也不需要安装浏览器扩展。
+- 直接复用 DSH 已配置的 DeepSeek 模型，不需要另填模型 API Key、安装 Docker 或注册第三方平台。
+- 在同一条流程中选择目标项目、补充真正影响结果的边界问题，并启动 DSH Agent。
+
+界面只保留一个来源和三个步骤：
+
+1. 抓取当前 DeepSeek 对话，再使用 DSH 已提供的 DeepSeek 模型和需求分析 Skill 完成整理与内部检查。
+2. 仅在存在会影响产品结果的待确认项时回答补充问题；需求清晰时不展示这一环节。
+3. 选择或核对目标项目目录和生成的提示词，然后发送到该项目的 DSH 会话并启动 Agent。
 
 ### 安装
 
-在 DeepSeek Harness 仓库目录中执行：
+在 DSH Desktop 终端或 DeepSeek Harness 仓库目录中执行：
 
 ```sh
-pnpm dsh plugin --profile web add github:TinyPanda168/SpecsRelay-DSH
+pnpm dsh plugin --profile desktop add github:TinyPanda168/SpecsRelay-DSH
 ```
 
-安装后重启 DSH WebUI。不需要浏览器扩展、开发者模式、外部服务，也不需要另外填写模型 API Key。插件会直接通过 DSH 打开 DeepSeek，并在本机私有资料中保留登录状态。
+安装后重启 DSH Desktop。不需要浏览器扩展、开发者模式、Docker、外部服务，也不需要另外填写模型 API Key。DSH Desktop 会在沙箱原生网页面板中打开 DeepSeek，并用隔离的持久 partition 保留登录状态。
 
 ### 使用方式
 
 1. 在 DSH 中打开或创建一个已经关联 Workspace 的会话。
 2. 点击 **DeepSeek** 页签，或点击左侧栏底部的 SpecsRelay 图标。
 3. 在左侧登录 DeepSeek，并打开需要交接的对话。
-4. 点击 **添加当前对话为来源**。
-5. 点击 **整合并强化来源**；需要时再进行需求澄清或评审。
-6. 核对项目目录和提示词，然后点击 **载入当前版本到 DSH 草稿**。
-
-在平板上，DeepSeek 和 SpecsRelay 会变为两个切换页签。两边都通过 DSH WebUI 的同一地址访问，平板不需要直接连接 Mac 的本机端口。
+4. 点击 **整理当前对话**；SpecsRelay 会抓取完整对话，并立即使用 DSH 模型和 Skill 自动整理。
+5. 检查整理后的需求，并回答待确认问题；需求未补充完整时不能进入载入步骤。
+6. 选择或核对项目目录，确认发送后会启动 Agent，然后点击 **发送到 DSH 并开始处理**。
 
 ### 数据与执行范围
 
-- DeepSeek 页面和交互画面都通过现有 DSH WebUI 地址访问。
-- 本机私有资料会保留 DeepSeek 登录状态；SpecsRelay 不读取或保存账号密码。
-- 抓取只在本地保存当前一份 DeepSeek 对话，不调用模型。
-- 只有整合、澄清、修订和评审会把对话文本交给 DSH 已配置的 DeepSeek 模型。
+- 左侧是真实 `WebContentsView`，不是截图或远程控制画面流。
+- 隔离的原生 session 会保留 DeepSeek 登录状态；SpecsRelay 不读取或保存账号密码。
+- Node integration 与 preload 访问保持关闭；主 frame 导航仅允许 `https://chat.deepseek.com`。
+- 只有点击 **整理当前对话** 后才会执行 DOM 抓取；加载、显示和调整网页尺寸都不会抓取。
+- 同一次操作会先在本地保存当前对话，再把它交给 DSH 已配置的 DeepSeek 模型完成整理与内部检查；澄清和修订沿用同一模型链路，不再提供单独的评审操作。
 - 内置 `specsrelay-requirement-analysis` Skill 只服务于这条工作流，不需要用户另外安装或配置。
-- 载入只会修改 DSH 输入草稿，不会自动发送，也不会启动 Agent 回合。
-- 手动粘贴只作为应急备用方式保留。
+- 主流程的 **发送到 DSH 并开始处理** 会通过 DSH 原生输入接口写入需求，再走与 DSH 发送按钮相同的提交链路。
+- 需求和项目目录就绪后，SpecsRelay 会在后台提前准备目标 DSH 会话。最终点击只执行本地写入、提交和切换；开发版本会记录点击到提交的耗时，便于验证是否达到一帧内完成。
+- 恢复执行快照或载入收件箱内容仍然只恢复 DSH 草稿，不会再次启动 Agent。
 
 ### 本地开发
 
 ```sh
-pnpm dsh plugin --profile web add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
+pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-deepseek
 ```
 
-本地添加插件后，重启 DSH WebUI 即可测试。
+本地添加插件后，重启 DSH Desktop 即可测试。普通 WebUI 无法提供原生 DeepSeek 面板，会明确提示需要 DSH Desktop。

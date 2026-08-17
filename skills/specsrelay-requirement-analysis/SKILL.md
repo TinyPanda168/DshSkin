@@ -48,7 +48,9 @@ Transform exactly one current DeepSeek conversation into a reviewable developmen
 - Write `acceptance_criteria` as observable pass conditions and `verification_steps` as the evidence that proves them.
 - Set `risk_level` from the consequence and reversibility of the requested change, not from conversation length.
 
-## Review and synthesis
+## Integrated review and synthesis
+
+Perform this review inside the same analysis pass before returning the handoff. Do not emit a separate review artifact or require a second review action.
 
 When reviewing an existing handoff, use the source conversation as primary evidence and the handoff as a proposed interpretation:
 
