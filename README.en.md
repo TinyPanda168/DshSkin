@@ -2,7 +2,9 @@
 
 [简体中文](README.md) | English
 
-SpecsRelay for DeepSeek is a companion plugin for DSH Desktop. It places the real, signed-in DeepSeek website beside the SpecsRelay requirement workbench in one DSH tab.
+SpecsRelay for DeepSeek is an open-source requirement handoff plugin built specifically for DSH Desktop. It connects DeepSeek web conversations to local DSH project development in one continuous workflow. The plugin embeds the real, sign-in-capable DeepSeek website inside DSH and keeps the SpecsRelay workbench beside it. From any DeepSeek conversation, users can capture the complete multi-turn context with one action, then reuse the DeepSeek model already configured in DSH and the bundled requirement-analysis Skill to turn the discussion into a structured, actionable requirement ready for delivery.
+
+SpecsRelay asks for clarification only when an unresolved product decision would materially affect implementation; clear requirements proceed directly to delivery. After the target project is selected, the plugin sends the finalized requirement to that project's DSH session and starts the Agent. The complete path from discussing a solution in DeepSeek to implementing it in DSH requires no browser extension, manual copy and paste, Docker service, separate API Key, or third-party platform.
 
 ## Recommended host
 
