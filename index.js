@@ -22,7 +22,7 @@ export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
 
 export const PROTOCOL_VERSION = 1;
-export const PLUGIN_VERSION = "0.8.3";
+export const PLUGIN_VERSION = "0.8.4";
 
 const MAX_INGRESS_BODY_BYTES = 320000;
 const MAX_CAPTURE_INGRESS_BODY_BYTES = 520000;
@@ -1053,7 +1053,8 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
         const requestUrl = new URL(req.url || "", "http://127.0.0.1");
         const frame = await browser.captureFrame({
           width: requestUrl.searchParams.get("width"),
-          height: requestUrl.searchParams.get("height")
+          height: requestUrl.searchParams.get("height"),
+          deviceScaleFactor: requestUrl.searchParams.get("scale")
         });
         const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#121416}img{display:block;width:100%;height:100%;object-fit:contain}</style></head><body><img alt="DeepSeek" src="data:image/jpeg;base64,${frame.toString("base64")}"></body></html>`;
         res.writeHead(200, {
