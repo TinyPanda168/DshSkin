@@ -1,5 +1,11 @@
 # SpecsRelay for DeepSeek
 
+面向 DSH Desktop 的开源 DeepSeek → DSH 需求交接插件。
+一键抓取完整对话，自动整理需求，直接交给目标项目的 Agent。
+在 DeepSeek 中讨论，在 DSH 中继续实现。
+
+_社区维护的第三方开源项目，并非 DeepSeek 官方产品，也不是 DSH Desktop 的内置插件。_
+
 简体中文 | [English](README.en.md)
 
 SpecsRelay for DeepSeek 是一款专为 DSH Desktop 设计的开源需求交接插件，用于打通 DeepSeek 网页对话到本地 DSH 项目开发的完整链路。插件会在 DSH 内嵌入真实、可登录的 DeepSeek 网页，并在旁侧提供常驻的 SpecsRelay 工作台。用户可以从任意 DeepSeek 对话出发，一键抓取完整多轮上下文，再复用 DSH 已配置的 DeepSeek 模型和内置需求分析 Skill，将讨论自动整理为结构化、可执行、可交接的开发需求。
@@ -8,7 +14,7 @@ SpecsRelay for DeepSeek 是一款专为 DSH Desktop 设计的开源需求交接�
 
 ## 推荐运行环境
 
-优先配合 [anywhere-labs 开源的 DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 使用。它提供 SpecsRelay 所需的原生 DeepSeek 网页面板，可保留完整登录体验并直接抓取当前对话。普通浏览器版 DSH WebUI 无法提供这块原生面板。
+优先配合 [anywhere-labs 开源的 DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 使用。它把 DeepSeek Harness 的本地 Web UI、Host 服务和插件系统带进原生桌面应用，并提供 SpecsRelay 所需的原生 DeepSeek 网页面板，可保留完整登录体验并直接抓取当前对话。请先按照 DSH Desktop 仓库中的下载与安装说明完成桌面端安装，再添加本插件。普通浏览器版 DSH WebUI 无法提供这块原生面板。
 
 ## 适用场景
 
@@ -61,3 +67,17 @@ pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-d
 ```
 
 本地添加插件后，重启 DSH Desktop 即可测试。普通 WebUI 无法提供原生 DeepSeek 面板，会明确提示需要 DSH Desktop。
+
+## 与相关项目的关系
+
+- [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 提供核心 Agent、模型、会话、Web UI 和插件系统。SpecsRelay 通过其插件机制安装，不修改上游源码。
+- [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 是推荐使用的社区桌面客户端，负责提供原生窗口和 DeepSeek 网页面板。SpecsRelay 需要单独安装，并非其内置功能。
+- 本仓库只包含 SpecsRelay 的 DSH 插件发行文件，用于 DeepSeek 网页对话到 DSH 项目的需求交接链路。
+
+## 特别感谢
+
+感谢 DeepSeek Harness、DSH Desktop 及其社区提供的插件基础、桌面能力和持续维护，也感谢 [AI Chat Exporter](https://github.com/TheBluCoder/AI-chat-exporter) 提供可参考的开源对话提取实现。第三方代码与许可证说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## License
+
+本项目遵循 [MIT License](LICENSE)。DeepSeek 是 DeepSeek AI 的商标；SpecsRelay-DSH 是独立的社区项目，与 DeepSeek 官方没有隶属关系，也未获得其背书。

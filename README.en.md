@@ -1,5 +1,11 @@
 # SpecsRelay for DeepSeek
 
+An open-source DeepSeek → DSH requirement handoff plugin for DSH Desktop.
+Capture the complete conversation, organize the requirement, and hand it directly to the target project's Agent.
+Discuss in DeepSeek, continue implementation in DSH.
+
+_This is a community-maintained third-party open-source project. It is not an official DeepSeek product or a built-in DSH Desktop plugin._
+
 [简体中文](README.md) | English
 
 SpecsRelay for DeepSeek is an open-source requirement handoff plugin built specifically for DSH Desktop. It connects DeepSeek web conversations to local DSH project development in one continuous workflow. The plugin embeds the real, sign-in-capable DeepSeek website inside DSH and keeps the SpecsRelay workbench beside it. From any DeepSeek conversation, users can capture the complete multi-turn context with one action, then reuse the DeepSeek model already configured in DSH and the bundled requirement-analysis Skill to turn the discussion into a structured, actionable requirement ready for delivery.
@@ -8,7 +14,7 @@ SpecsRelay asks for clarification only when an unresolved product decision would
 
 ## Recommended host
 
-Use this plugin with [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop). Its native DeepSeek panel provides the complete signed-in website experience and direct conversation capture required by SpecsRelay. The ordinary browser-based DSH WebUI cannot provide this native panel.
+Use this plugin with [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop). It brings the local DeepSeek Harness Web UI, Host service, and plugin system into a native desktop application. Its native DeepSeek panel provides the complete signed-in website experience and direct conversation capture required by SpecsRelay. Install the desktop client by following the download and installation instructions in the DSH Desktop repository before adding this plugin. The ordinary browser-based DSH WebUI cannot provide this native panel.
 
 ## Use cases
 
@@ -61,3 +67,17 @@ pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-d
 ```
 
 For local development, restart DSH Desktop after adding the plugin. Ordinary WebUI cannot provide the native DeepSeek panel and reports that DSH Desktop is required.
+
+## Relationship to related projects
+
+- [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) provides the core Agent, model, session, Web UI, and plugin system. SpecsRelay installs through that plugin system without modifying upstream source.
+- [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) is the recommended community desktop client and supplies the native window and DeepSeek Web panel. SpecsRelay is installed separately and is not bundled with it.
+- This repository contains only the SpecsRelay DSH plugin distribution for the requirement handoff path from a DeepSeek Web conversation to a DSH project.
+
+## Acknowledgements
+
+Thanks to DeepSeek Harness, DSH Desktop, and their communities for the plugin foundation, desktop capabilities, and ongoing maintenance. Thanks also to [AI Chat Exporter](https://github.com/TheBluCoder/AI-chat-exporter) for its open-source conversation extraction implementation. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party code and license details.
+
+## License
+
+This project is distributed under the [MIT License](LICENSE). DeepSeek is a trademark of DeepSeek AI. SpecsRelay-DSH is an independent community project and is neither affiliated with nor endorsed by DeepSeek.
