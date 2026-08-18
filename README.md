@@ -8,6 +8,8 @@ _社区维护的第三方开源项目，并非 DeepSeek 官方产品，也不是
 
 简体中文 | [English](README.en.md)
 
+![SpecsRelay 将 DeepSeek 对话整理为需求并发送到 DSH Agent](https://raw.githubusercontent.com/TinyPanda168/SpecsRelay-DSH/main/assets/specsrelay-dsh-hero.png)
+
 SpecsRelay for DeepSeek 是一款专为 DSH Desktop 设计的开源需求交接插件，用于打通 DeepSeek 网页对话到本地 DSH 项目开发的完整链路。插件会在 DSH 内嵌入真实、可登录的 DeepSeek 网页，并在旁侧提供常驻的 SpecsRelay 工作台。用户可以从任意 DeepSeek 对话出发，一键抓取完整多轮上下文，再复用 DSH 已配置的 DeepSeek 模型和内置需求分析 Skill，将讨论自动整理为结构化、可执行、可交接的开发需求。
 
 如果整理结果仍存在会影响产品实现的边界问题，SpecsRelay 才会要求用户补充确认；需求已经清晰时则直接进入交接。选择目标项目后，插件会把最终需求发送到对应的 DSH 会话并启动 Agent。整个过程不需要浏览器扩展、手动复制粘贴、Docker、额外 API Key 或第三方服务，让“在 DeepSeek 中讨论方案”自然衔接到“在 DSH 中继续实现”。
