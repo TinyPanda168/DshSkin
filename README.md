@@ -36,7 +36,7 @@ pnpm dsh plugin --profile desktop add github:TinyPanda168/SpecsRelay-DSH
 ## 使用方式
 
 1. 在 DSH 中打开或创建一个已经关联 Workspace 的会话。
-2. 点击 **DeepSeek** 页签，或点击左侧栏底部的 SpecsRelay 图标。
+2. 点击左侧栏底部的 SpecsRelay 图标，打开需求交接工作区。
 3. 在左侧登录 DeepSeek，并打开需要交接的对话。
 4. 点击 **整理当前对话**；SpecsRelay 会抓取完整对话，并立即使用 DSH 模型和 Skill 自动整理。
 5. 检查整理后的需求，并回答待确认问题；需求未补充完整时不能进入载入步骤。

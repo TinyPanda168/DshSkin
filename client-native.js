@@ -1998,18 +1998,9 @@ ${listLines(handoff.open_questions)}`;
                 margin: 0
               }
             },
-            "DeepSeek 登录和对话抓取均在此页签完成。"
+            "DeepSeek 登录和对话抓取均在此工作区完成。"
           )
         );
-      }
-
-      function activateDeepSeekView() {
-        const tab = [...document.querySelectorAll('button[role="tab"]')].find(
-          (candidate) => candidate.textContent?.trim() === "DeepSeek"
-        );
-        if (!(tab instanceof HTMLElement)) return false;
-        tab.click();
-        return true;
       }
 
       function SpecsRelayShortcut({
@@ -2023,9 +2014,7 @@ ${listLines(handoff.open_questions)}`;
       }) {
         const [open, setOpen] = useState(false);
         const sessionId = useSessions((sessions) => sessions.current || "");
-        const onClick = () => {
-          if (!activateDeepSeekView()) setOpen(true);
-        };
+        const onClick = () => setOpen(true);
         return h(
           React.Fragment,
           null,
@@ -2045,8 +2034,8 @@ ${listLines(handoff.open_questions)}`;
                 }
               }),
               onClick,
-              title: "打开 DeepSeek 页签",
-              "aria-label": "打开 DeepSeek 页签",
+              title: "打开 SpecsRelay",
+              "aria-label": "打开 SpecsRelay",
               variant: "ghost",
               style: {
                 borderRadius: wide ? 12 : "50%",
@@ -2167,29 +2156,7 @@ ${listLines(handoff.open_questions)}`;
                 SpecsRelayShortcut
               )
             ),
-          "specsrelay-deepseek: sidebar tab shortcut"
-        );
-        ctx.effect(
-          () =>
-            ctx.slots.inject("conversation.view", () =>
-              ctx.slots.register(
-                {
-                  name: "conversation.view",
-                  id: "specsrelay-deepseek",
-                  order: 20,
-                  label: "DeepSeek",
-                  inject: (sessionId) => ({
-                    loadDraft: (item) => loadIntoSession(ctx, sessionId, item),
-                    loadProjectDraft: loadProject,
-                    openSession,
-                    pickProject,
-                    prepareProject
-                  })
-                },
-                SpecsRelayDeepSeekView
-              )
-            ),
-          "specsrelay-deepseek: DeepSeek web conversation view"
+          "specsrelay-deepseek: sidebar shortcut"
         );
         ctx.effect(
           () =>

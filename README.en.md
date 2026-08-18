@@ -36,7 +36,7 @@ Restart DSH Desktop after installation. No browser extension, developer mode, Do
 ## Use
 
 1. Open or create a DSH session with a Workspace.
-2. Select the **DeepSeek** tab or the SpecsRelay icon at the bottom of the sidebar.
+2. Select the SpecsRelay icon at the bottom of the sidebar to open the handoff workspace.
 3. Sign in to DeepSeek in the left pane and open the conversation to relay.
 4. Select **Organize current conversation**. SpecsRelay captures the complete conversation and immediately organizes it with the DSH model and Skill.
 5. Check the organized requirement and answer any clarification questions. The DSH load step remains unavailable until the requirement is complete.
