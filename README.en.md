@@ -8,13 +8,27 @@ SpecsRelay is not another chat client and does not ask users to change how they 
 
 _This is an independently maintained community project. It is not an official DeepSeek product or a built-in feature of any desktop client._
 
-**Currently adapted for:** [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop), [Pilot Harness](https://github.com/op7418/pilot-harness), [DataElement DSH Desktop](https://github.com/dataelement/dsh-desktop), and [myYangyunfan DSH Desktop](https://github.com/myYangyunfan/dsh_desktop). DSH Desktop by anywhere-labs is the current recommendation for regular users; the other clients require a SpecsRelay companion build for complete support.
+> **Current compatibility scope: SpecsRelay supports only these four desktop clients:** [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop), [Pilot Harness](https://github.com/op7418/pilot-harness), [DataElement DSH Desktop](https://github.com/dataelement/dsh-desktop), and [myYangyunfan DSH Desktop](https://github.com/myYangyunfan/dsh_desktop). Other DSH desktop clients and the ordinary browser-based WebUI are not currently supported.
+
+DSH Desktop by anywhere-labs is the current recommendation for regular users. Complete support in the other three clients currently requires a SpecsRelay companion build.
 
 [简体中文](README.md) | English
 
 ![SpecsRelay organizes a DeepSeek conversation and sends it to a DSH Agent](assets/specsrelay-dsh-hero.png)
 
 [Quick install](#quick-install) · [Workflow](#workflow) · [Supported desktop clients](#supported-desktop-clients) · [Data and security](#data-and-security)
+
+## Why SpecsRelay exists
+
+DeepSeek Web is well suited to exploring an idea, comparing directions, and gradually confirming product decisions. DSH is better suited to opening a local project, reading its code, and continuing implementation. Both handle part of the job, but the transition between them is usually manual: users copy a long conversation, reconstruct its context, identify which decisions are final, and tell a Coding Agent which project should continue the work.
+
+SpecsRelay moves that repetitive handoff into the DSH desktop experience without replacing either side:
+
+- **DeepSeek remains the discussion space.** Users keep the original website, sign-in, conversation history, and familiar interaction.
+- **SpecsRelay forms the requirement.** It captures the complete current conversation, extracts goals, constraints, decisions, and acceptance criteria, and asks only when something material is unclear.
+- **DSH remains the implementation space.** After the user selects a project and confirms delivery, the requirement enters the corresponding session so the Agent can continue the discussion or start development.
+
+SpecsRelay is therefore neither a new model platform nor a general-purpose web scraper. It is a requirement relay built specifically between **DeepSeek Web conversations and DSH project execution**.
 
 ## Workflow
 

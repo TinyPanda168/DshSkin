@@ -8,13 +8,27 @@ SpecsRelay 不是另一个聊天工具，也不要求用户改变在 DeepSeek �
 
 _本项目由社区独立维护，不是 DeepSeek 官方产品，也不是任何桌面客户端的内置插件。_
 
-**当前已适配：** [anywhere-labs DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)、[Pilot Harness](https://github.com/op7418/pilot-harness)、[DataElement DSH Desktop](https://github.com/dataelement/dsh-desktop) 和 [myYangyunfan DSH Desktop](https://github.com/myYangyunfan/dsh_desktop)。其中 anywhere-labs DSH Desktop 是当前面向普通用户的推荐选择；其余客户端的完整支持需要 SpecsRelay 配套构建。
+> **当前兼容范围：SpecsRelay 目前只支持以下四款桌面客户端：** [anywhere-labs DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)、[Pilot Harness](https://github.com/op7418/pilot-harness)、[DataElement DSH Desktop](https://github.com/dataelement/dsh-desktop) 和 [myYangyunfan DSH Desktop](https://github.com/myYangyunfan/dsh_desktop)。其他 DSH 桌面客户端和普通浏览器 WebUI 暂不支持。
+
+其中 anywhere-labs DSH Desktop 是当前面向普通用户的推荐选择；其余三个客户端的完整支持目前需要 SpecsRelay 配套构建。
 
 简体中文 | [English](README.en.md)
 
 ![SpecsRelay 将 DeepSeek 对话整理为需求并发送到 DSH Agent](assets/specsrelay-dsh-hero.png)
 
 [快速安装](#快速安装) · [工作流程](#工作流程) · [支持的桌面客户端](#支持的桌面客户端) · [数据与安全](#数据与安全)
+
+## 为什么做 SpecsRelay
+
+DeepSeek 网页适合把想法聊开、比较方案并逐步确认产品决定，DSH 则更适合进入本地项目、读取代码并持续实现。两者各自都能完成一部分工作，但中间通常还缺少一条可靠的交接链路：用户需要手动复制长对话、重新整理上下文、指出哪些决定已经确认，再告诉 Coding Agent 应该在哪个项目继续。
+
+SpecsRelay 把这段重复工作收进 DSH 桌面端，但不替代两边原有能力：
+
+- **DeepSeek 继续负责讨论。** 用户保留原网页的登录、历史会话和熟悉的对话体验。
+- **SpecsRelay 负责形成需求。** 它抓取当前完整对话，提炼目标、约束、决定和验收标准，只在真正不清晰时请求补充。
+- **DSH 继续负责实现。** 用户选择项目并确认后，需求直接进入对应会话，由 Agent 继续讨论或开始开发。
+
+因此，SpecsRelay 不是新的模型平台，也不是通用网页抓取器；它是一条专门连接 **DeepSeek 网页对话与 DSH 项目执行** 的需求中继层。
 
 ## 工作流程
 
