@@ -17,6 +17,7 @@ import {
   parseHandoffResponse
 } from "./lib/handoff.js";
 import { createDesktopBrowserHost } from "./lib/native-browser.js";
+import { createProcessDesktopWebPanels } from "./lib/process-web-panels.js";
 
 export const name = "specsrelay-dsh-deepseek";
 export const inject = ["agents", "llm", "skills", "webServer"];
@@ -161,6 +162,11 @@ function boundedString(value, name, maxChars) {
     throw new Error(`${name} contains invalid characters.`);
   }
   return normalized;
+}
+
+function optionalBoundedString(value, name, maxChars) {
+  if (value === undefined || value === null || value === "") return "";
+  return boundedString(value, name, maxChars);
 }
 
 export function validateIncomingDelivery(value) {
@@ -453,26 +459,48 @@ export async function startIngressServer({
 }
 
 function resolveOrganizerRoute(ctx, sessionId) {
-  const available = ctx.llm
-    .listProviders()
-    .some((provider) => provider.id === DEFAULT_DEEPSEEK_PROVIDER);
-  if (!available) {
-    throw new Error(
-      "DSH 当前未配置 DeepSeek 官方模型，请先在 DSH 设置中完成 DeepSeek 登录或模型配置。"
-    );
-  }
+  const providers = ctx.llm.listProviders();
+  const providerIds = new Set(providers.map((provider) => provider.id));
 
-  const agent = ctx.agents.get(sessionId);
+  const agent = sessionId ? ctx.agents.get(sessionId) : undefined;
   const requestConfig = agent?.session?.requestHeader?.()?.config;
   const fallbackConfig = agent?.options;
   const current = requestConfig ?? fallbackConfig;
-  const model =
-    current?.provider === DEFAULT_DEEPSEEK_PROVIDER &&
-    typeof current.model === "string" &&
-    current.model.trim()
+  const currentModel =
+    typeof current?.model === "string" && current.model.trim()
       ? current.model.trim()
-      : DEFAULT_DEEPSEEK_MODEL;
-  return { provider: DEFAULT_DEEPSEEK_PROVIDER, model };
+      : "";
+
+  // DSH Desktop's official DeepSeek route is the primary organizer route when
+  // it is registered; the active session's own model choice applies to it.
+  if (providerIds.has(DEFAULT_DEEPSEEK_PROVIDER)) {
+    return {
+      provider: DEFAULT_DEEPSEEK_PROVIDER,
+      model:
+        current?.provider === DEFAULT_DEEPSEEK_PROVIDER && currentModel
+          ? currentModel
+          : DEFAULT_DEEPSEEK_MODEL
+    };
+  }
+
+  // Configurable-route hosts (Pilot Harness) register the routes the user
+  // configured; prefer the active session's selected route when it is one.
+  if (typeof current?.provider === "string" && providerIds.has(current.provider)) {
+    return {
+      provider: current.provider,
+      model: currentModel || DEFAULT_DEEPSEEK_MODEL
+    };
+  }
+
+  // Last resort: any registered route, keeping the session model when usable.
+  const provider = providers[0];
+  if (provider) {
+    return { provider: provider.id, model: currentModel || DEFAULT_DEEPSEEK_MODEL };
+  }
+
+  throw new Error(
+    "请先在设置中配置模型。"
+  );
 }
 
 function message(role, text, source) {
@@ -688,7 +716,7 @@ ${revisionInstruction.replaceAll(
  * @returns {Promise<{ handoff: object, provider: string, model: string, warnings: string[], errors: string[], requiresClarification: boolean, skill: { name: string, provider: string } }>}
  */
 export async function organizeImportedContext(ctx, request) {
-  const sessionId = boundedString(request?.sessionId, "Session id", 160);
+  const sessionId = optionalBoundedString(request?.sessionId, "Session id", 160);
   const importedText = boundedString(
     request?.text,
     "Imported conversation",
@@ -950,7 +978,7 @@ function registerBrowserRoutes(ctx, inbox, captures, browser) {
         return;
       }
       try {
-        const sessionId = boundedString(
+        const sessionId = optionalBoundedString(
           new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get(
             "sessionId"
           ),
@@ -989,9 +1017,20 @@ export async function apply(ctx) {
 
   const inbox = createInbox();
   const captures = createCaptureInbox();
-  const browser = createDesktopBrowserHost(ctx.get("desktopWebPanels"));
+  const processWebPanels = ctx.get("desktopWebPanels")
+    ? undefined
+    : createProcessDesktopWebPanels();
+  const browser = createDesktopBrowserHost(
+    ctx.get("desktopWebPanels") ?? processWebPanels
+  );
   ctx.effect(
-    () => registerBrowserRoutes(ctx, inbox, captures, browser),
+    () => {
+      const disposeRoutes = registerBrowserRoutes(ctx, inbox, captures, browser);
+      return async () => {
+        await disposeRoutes();
+        await processWebPanels?.dispose();
+      };
+    },
     "specsrelay-deepseek: WebUI routes"
   );
 

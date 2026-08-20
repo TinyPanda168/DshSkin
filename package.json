@@ -4,6 +4,12 @@
   "description": "Native DeepSeek conversation capture, requirement analysis, and DSH Desktop handoff.",
   "type": "module",
   "main": "index.js",
+  "bin": {
+    "specsrelay-dsh": "./bin/specsrelay-dsh.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TinyPanda168/SpecsRelay-DSH.git"
@@ -21,6 +27,9 @@
     "index.js",
     "client-native.js",
     "lib",
+    "bin",
+    "installer",
+    "docs",
     "skills",
     "cordis.patch.yml",
     "README.md",

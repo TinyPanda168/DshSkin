@@ -1173,7 +1173,6 @@ ${listLines(handoff.open_questions)}`;
         }, [storageKey]);
 
         useEffect(() => {
-          if (!sessionId) return;
           const controller = new AbortController();
           fetch(
             `${API}/organizer/status?sessionId=${encodeURIComponent(sessionId)}`,
@@ -1258,6 +1257,16 @@ ${listLines(handoff.open_questions)}`;
         useEffect(() => {
           void startBrowser();
         }, []);
+
+        const closeView = () => {
+          void fetch(`${API}/browser/layout`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ visible: false }),
+            keepalive: true
+          }).catch(() => {});
+          onClose?.();
+        };
 
         useEffect(() => {
           const node = webPanelRef.current;
@@ -1528,7 +1537,7 @@ ${listLines(handoff.open_questions)}`;
               // Loading remains available when browser persistence is unavailable.
             }
             openSession(result.sessionId);
-            onClose();
+            closeView();
           }
           return result;
         };
@@ -1657,7 +1666,7 @@ ${listLines(handoff.open_questions)}`;
                     icon: h(IconCloseOutline16),
                     size: "sm",
                     variant: "ghost",
-                    onClick: onClose
+                    onClick: closeView
                   },
                   "关闭"
                 )
@@ -1702,7 +1711,7 @@ ${listLines(handoff.open_questions)}`;
                     width: "100%"
                   }
                 },
-                browserState === "error" ? "请使用 DSH Desktop 打开 DeepSeek" : "正在准备 DeepSeek…"
+                browserState === "error" ? "请使用支持 SpecsRelay 的 DSH 桌面客户端" : "正在准备 DeepSeek…"
               )
             ),
             h(
@@ -2134,7 +2143,12 @@ ${listLines(handoff.open_questions)}`;
         };
         const loadProject = (item) => loadIntoProject(ctx, item);
         const openSession = (sessionId) => ctx.sessions.open(sessionId);
-        const pickProject = () => ctx.workspaces.pickDirectory();
+        const pickProject = () => {
+          const desktopPicker = window.dshDesktopDirectoryPicker;
+          return desktopPicker && typeof desktopPicker.pick === "function"
+            ? desktopPicker.pick()
+            : ctx.workspaces.pickDirectory();
+        };
         const prepareProject = (projectPath) =>
           prepareProjectTarget(ctx, projectPath);
         ctx.effect(
