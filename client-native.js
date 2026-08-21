@@ -2013,6 +2013,7 @@ ${listLines(handoff.open_questions)}`;
       }
 
       function SpecsRelayShortcut({
+        dshDesktop,
         wide,
         loadDraft,
         loadProjectDraft,
@@ -2047,6 +2048,7 @@ ${listLines(handoff.open_questions)}`;
               "aria-label": "打开 SpecsRelay",
               variant: "ghost",
               style: {
+                alignSelf: dshDesktop ? "flex-end" : undefined,
                 borderRadius: wide ? 12 : "50%",
                 boxSizing: "border-box",
                 flex: "none",
@@ -2131,6 +2133,12 @@ ${listLines(handoff.open_questions)}`;
       const inject = ["slots", "sessions", "conversation", "workspaces"];
 
       function apply(ctx) {
+        const locationParams = new URLSearchParams(window.location.search);
+        const dshDesktopMode = locationParams.get("dsh-desktop-mode");
+        const dshDesktopPlatform = locationParams.get("dsh-desktop-platform");
+        const isDshDesktop = ["compatibility", "advanced"].includes(
+          dshDesktopMode
+        ) && ["darwin", "win32", "linux"].includes(dshDesktopPlatform);
         const loadCurrent = (item) => {
           const sessionId = ctx.sessions.list.getSnapshot().current;
           if (!sessionId) {
@@ -2160,6 +2168,7 @@ ${listLines(handoff.open_questions)}`;
                   id: "specsrelay-deepseek",
                   order: -10,
                   inject: () => ({
+                    dshDesktop: isDshDesktop,
                     loadDraft: loadCurrent,
                     loadProjectDraft: loadProject,
                     openSession,

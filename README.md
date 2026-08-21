@@ -122,7 +122,7 @@ pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-d
 
 添加插件后重启 DSH Desktop。普通 WebUI 无法提供原生 DeepSeek 面板，会明确提示需要桌面客户端。
 
-四个客户端共用 `@specsrelay/dsh-deepseek` bundle。桌面客户端只实现 `desktopWebPanels` 服务或 SpecsRelay 进程桥，用于创建沙箱 `WebContentsView`、保持登录 partition、执行受控 DOM 抓取，以及在 DSH 子进程退出时清理页面。
+四个客户端共用 `@specsrelay/dsh-deepseek` 的需求整理与交接核心，但不会共用一套未经区分的桌面界面。插件根据宿主提供的稳定信号选择客户端适配：例如官方 DSH Desktop 的页脚入口会在共享动作行中贴底，保持紧邻“设置”，其他客户端保留各自适合的布局。桌面客户端仍分别实现 `desktopWebPanels` 服务或 SpecsRelay 进程桥，用于创建沙箱 `WebContentsView`、保持登录 partition、执行受控 DOM 抓取，以及在 DSH 子进程退出时清理页面。
 
 ## 与相关项目的关系
 

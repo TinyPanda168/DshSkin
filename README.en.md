@@ -122,7 +122,7 @@ pnpm dsh plugin --profile desktop add /absolute/path/to/SpecsRelay/plugins/dsh-d
 
 Restart DSH Desktop after adding the plugin. Ordinary WebUI cannot provide the native DeepSeek panel and reports that a desktop client is required.
 
-All four clients use the same `@specsrelay/dsh-deepseek` bundle. A desktop client only implements the `desktopWebPanels` service or SpecsRelay process bridge that creates the sandboxed `WebContentsView`, preserves the sign-in partition, performs controlled DOM capture, and closes the page when the DSH child exits.
+All four clients share the requirement-organization and handoff core from `@specsrelay/dsh-deepseek`, but they do not share one undifferentiated desktop UI. The plugin selects host-specific presentation from stable host signals: for example, official DSH Desktop bottom-aligns the footer entry in its shared action row so that it stays next to Settings, while other clients retain layouts suited to their own shells. Each desktop client still implements the `desktopWebPanels` service or SpecsRelay process bridge that creates the sandboxed `WebContentsView`, preserves the sign-in partition, performs controlled DOM capture, and closes the page when the DSH child exits.
 
 ## Relationship to related projects
 
